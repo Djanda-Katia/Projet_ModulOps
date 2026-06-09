@@ -1,43 +1,40 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 500 500" width="100%" height="100%">
-  <g transform="translate(100, 110)">
-    <defs>
-      <!-- Dégradé Violet Émeraude (Deep Purple vers Bright Violet) -->
-      <linearGradient id="purpleGrad" x1="0%" y1="0%" x2="100%" y2="100%">
-        <stop offset="0%" stop-color="#2E1065" /> <!-- Remplaçant du #064E3B (Vert très foncé) -->
-        <stop offset="100%" stop-color="#8B5CF6" /> <!-- Remplaçant du #0D9488 (Vert Émeraude clair) -->
-      </linearGradient>
-      <linearGradient id="slateGrad" x1="0%" y1="0%" x2="100%" y2="100%">
-        <stop offset="0%" stop-color="#1E293B" />
-        <stop offset="100%" stop-color="#475569" />
-      </linearGradient>
-      <filter id="softShadow" x="-10%" y="-10%" width="120%" height="120%">
-        <feDropShadow dx="0" dy="8" stdDeviation="10" flood-color="#0F172A" flood-opacity="0.06"/>
-      </filter>
-    </defs>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 650 220" width="100%" height="100%">
+  <defs>
+    <linearGradient id="boxBlueGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#0055ff" />
+      <stop offset="100%" stop-color="#10b3ef" />
+    </linearGradient>
+    
+    <linearGradient id="boxDarkGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#040814" />
+      <stop offset="100%" stop-color="#111a33" />
+    </linearGradient>
 
-    <!-- Les deux premiers piliers passent du dégradé vert au dégradé violet -->
-    <rect x="0" y="40" width="80" height="200" rx="24" fill="url(#purpleGrad)" filter="url(#softShadow)"/>
-    
-    <rect x="55" y="40" width="80" height="130" rx="24" transform="rotate(-30 55 40)" fill="url(#purpleGrad)"/>
-    
-    <rect x="165" y="40" width="80" height="130" rx="24" transform="rotate(30 165 40)" fill="url(#slateGrad)"/>
-    
-    <rect x="220" y="40" width="80" height="200" rx="24" fill="url(#slateGrad)" filter="url(#softShadow)"/>
+    <filter id="softShadow" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="4" stdDeviation="5" flood-color="#040814" flood-opacity="0.15"/>
+    </filter>
+  </defs>
 
-    <circle cx="150" cy="115" r="22" fill="#FFFFFF" filter="url(#softShadow)"/>
-    <!-- La pastille centrale passe au Violet clair -->
-    <circle cx="150" cy="115" r="12" fill="#8B5CF6"/>
+  <g transform="translate(10, 10)">
+    <rect x="10" y="30" width="42" height="115" rx="14" fill="url(#boxBlueGrad)" filter="url(#softShadow)"/>
+    
+    <rect x="42" y="32" width="42" height="85" rx="14" transform="rotate(-28 42 32)" fill="url(#boxBlueGrad)"/>
+    
+    <rect x="110" y="30" width="42" height="85" rx="14" transform="rotate(28 110 30)" fill="url(#boxDarkGrad)"/>
+    
+    <rect x="125" y="30" width="42" height="115" rx="14" fill="url(#boxDarkGrad)" filter="url(#softShadow)"/>
+
+    <circle cx="88" cy="80" r="13" fill="#FFFFFF" filter="url(#softShadow)"/>
+    <circle cx="88" cy="80" r="7" fill="#10b3ef"/>
   </g>
 
-  <!-- Texte avec les équivalents de vert en violet ultra-sombre et violet profond -->
   <text 
-    x="250" 
-    y="425" 
+    x="210" 
+    y="112" 
     font-family="ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" 
-    font-size="44" 
-    text-anchor="middle" 
-    letter-spacing="-0.05em"
+    font-size="52" 
+    letter-spacing="-0.03em"
   >
-    <tspan font-weight="800" fill="#1E1B4B">Modul</tspan><tspan font-weight="200" fill="#4C1D95">Ops</tspan>
+    <tspan font-weight="800" fill="#040814">Modul</tspan><tspan font-weight="300" fill="#0055ff">Ops</tspan>
   </text>
 </svg>

@@ -39,4 +39,21 @@ class AuthController extends Controller
         $request->user()->currentAccessToken()->delete();
         return response()->json(['message' => 'Déconnecté avec succès']);
     }
+    public function reinitialiserMotDePassse(Request $request)
+{
+    $request->validate(['email' => 'required|email']);
+    
+    // On vérifie juste si l'utilisateur existe
+    $user = \App\Models\User::where('email', $request->email)->first();
+    
+    if (!$user) {
+        return response()->json(['message' => 'Aucun utilisateur trouvé avec cet e-mail.'], 404);
+    }
+
+    // On simule l'envoi du lien/token
+    return response()->json([
+        'message' => 'Un e-mail de réinitialisation a été envoyé avec succès.',
+        'token' => bin2hex(random_bytes(16)) // Faux jeton pour la forme
+    ]);
+}
 }

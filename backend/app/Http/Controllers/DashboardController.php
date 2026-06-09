@@ -2,49 +2,72 @@
 
 namespace App\Http\Controllers;
 
-use Illuminate\Http\Request;
-use App\Models\DemandeConge; // Utilise ton modèle d'action
-use App\Models\Conge;        // Utilise ton modèle de base
-use App\Models\Ticket;
+use App\Models\DemandeConge;
 use App\Models\Tache;
+use App\Models\Ticket;
 use App\Models\User;
 use Illuminate\Support\Facades\Auth;
-use Carbon\Carbon;
 
 class DashboardController extends Controller
 {
-    public function getStats()
+    /**
+     * Retourne uniquement des statistiques en lecture seule.
+     * Aucune action (update/delete) n'est autorisée ici.
+     */
+    public function getDashboard()
     {
         $user = Auth::user();
-        
-        // 1. Indicateurs des Congés (Point 4.6.2)
-        $statsConges = [
-            // On compte les demandes en attente dans DemandeConge [cite: 129]
-            'en_attente' => DemandeConge::where('statut', 'En attente')->count(),
-            // On récupère le solde mis à jour dans la table users ou via Conge [cite: 128]
-            'mon_solde' => $user->solde_conge ?? 30,
-        ];
 
-        // 2. Indicateurs des Tickets (Point 4.6.3) [cite: 130, 132]
-        $statsTickets = [
-            'ouverts' => Ticket::where('statut', 'Ouvert')->count(),
-            'en_cours' => Ticket::where('statut', 'En cours')->count(),
-            'resolus' => Ticket::where('statut', 'Résolu')->count(),
-            'priorite_haute' => Ticket::where('priorite', 'Haute')->count(),
-        ];
+        // 1. DASHBOARD RESPONSABLE : Vue d'ensemble RH et Tâches de l'équipe
+        if ($user->role_id === 2) {
+            return response()->json([
+                'type' => 'responsable',
+                'vue_ensemble' => [
+                    'charge_conges_attente' => DemandeConge::where('statut', 'En attente')->count(),
+                    'suivi_equipe' => User::where('role_id', '!=', 2)->get()->map(function ($e) {
+                        return [
+                            // CORRECTION : Remplacement de ->name par l'identité réelle (nom et prenom)
+                            'nom' => $e->nom,
+                            'prenom' => $e->prenom,
+                            'jours_conges_pris' => DemandeConge::where('user_id', $e->id)->where('statut', 'Approuvée')->get()
+                                ->sum(fn($c) => (new \DateTime($c->date_debut))->diff(new \DateTime($c->date_fin))->days + 1),
+                            'taches' => [
+                                'a_faire' => Tache::where('user_id', $e->id)->where('statut', 'À faire')->count(),
+                                'en_cours' => Tache::where('user_id', $e->id)->where('statut', 'En cours')->count(),
+                                // CORRECTION : On compte à la fois les tâches achevées et celles validées (Fermée)
+                                'terminees' => Tache::where('user_id', $e->id)->whereIn('statut', ['Terminée', 'Fermée'])->count(),
+                            ]
+                        ];
+                    })
+                ]
+            ]);
+        }
 
-        // 3. Indicateurs des Tâches (Point 4.6.3) [cite: 131]
-        $statsTaches = [
-            'en_retard' => Tache::where('statut', '!=', 'Terminée')
-                ->where('date_echeance', '<', Carbon::now())
-                ->count(),
-        ];
+        // 2. DASHBOARD TECHNICIEN : Statistiques opérationnelles
+        if ($user->role_id === 3) {
+            return response()->json([
+                'type' => 'technicien',
+                'statistiques' => [
+                    'tickets_assignes' => Ticket::where('technicien_id', $user->id)->count(),
+                    'tickets_en_cours' => Ticket::where('technicien_id', $user->id)->where('statut', 'En cours')->count(),
+                    'taches_en_cours' => Tache::where('user_id', $user->id)->where('statut', 'En cours')->count(),
+                    // CORRECTION : Prise en compte du statut finalisé pour les tâches
+                    'taches_terminees' => Tache::where('user_id', $user->id)->whereIn('statut', ['Terminée', 'Fermée'])->count(),
+                ]
+            ]);
+        }
 
+        // 3. DASHBOARD EMPLOYÉ : Statistiques personnelles
         return response()->json([
-            'user_role' => $user->role_id,
-            'conges' => $statsConges,
-            'tickets' => $statsTickets,
-            'taches' => $statsTaches
+            'type' => 'employe',
+            'statistiques' => [
+                'conges_pris' => DemandeConge::where('user_id', $user->id)->where('statut', 'Approuvée')->get()
+                    ->sum(fn($c) => (new \DateTime($c->date_debut))->diff(new \DateTime($c->date_fin))->days + 1),
+                // CORRECTION : On utilise la colonne réelle solde_conge de ta base de données !
+                'solde_restant' => $user->solde_conge,
+                'taches_en_cours' => Tache::where('user_id', $user->id)->where('statut', 'En cours')->count(),
+                'tickets_ouverts' => Ticket::where('user_id', $user->id)->where('statut', 'Ouvert')->count(),
+            ]
         ]);
     }
 }

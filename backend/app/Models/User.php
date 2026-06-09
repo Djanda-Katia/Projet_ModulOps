@@ -47,7 +47,7 @@ class User extends Authenticatable
      */
     public function conges()
     {
-        return $this->hasMany(Conge::class);
+        return $this->hasMany(DemandeConge::class);
     }
 
     /**

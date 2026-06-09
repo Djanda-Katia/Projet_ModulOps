@@ -1,130 +1,270 @@
-import React, { useState } from "react";
+import { useState } from "react";
+import loginImg from "../assets/login-img.png";
 
-function ExactInput({ type, placeholder, value, onChange }) {
-  return (
-    <div className="w-full">
-      <input
-        type={type}
-        value={value}
-        onChange={onChange}
-        placeholder={placeholder}
-        required
-        className="w-full bg-transparent border-b border-zinc-800 py-3 text-sm text-white placeholder:text-zinc-600 focus:outline-none focus:border-[#9461e1] transition-colors"
-      />
-    </div>
-  );
-}
+// ── CONFIGURATION BACKEND ───────────────────────────────────────────────────
+const API_BASE = import.meta.env.VITE_API_URL ?? "http://localhost:8000";
 
-export default function Login() {
-  const [username, setUsername] = useState("");
-  const [password, setPassword] = useState("");
+// ── ICONS ────────────────────────────────────────────────────────────────────
+const EyeOpen = () => (
+  <svg width="18" height="18" viewBox="0 0 24 24" fill="none"
+    stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
+    <circle cx="12" cy="12" r="3" />
+  </svg>
+);
 
-  const handleSubmit = (e) => {
+const EyeClosed = () => (
+  <svg width="18" height="18" viewBox="0 0 24 24" fill="none"
+    stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94
+             M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19
+             m-6.72-1.07a3 3 0 1 1-4.24-4.24" />
+    <line x1="1" y1="1" x2="23" y2="23" />
+  </svg>
+);
+
+{/* TON SVG STRICTEMENT INTÉGRAL ET NON MODIFIÉ */}
+const ModulOpsLogo = () => (
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 650 220" width="100%" height="100%">
+    <defs>
+      <linearGradient id="boxBlueGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+        <stop offset="0%" stop-color="#0055ff" />
+        <stop offset="100%" stop-color="#10b3ef" />
+      </linearGradient>
+      
+      <linearGradient id="boxDarkGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+        <stop offset="0%" stop-color="#040814" />
+        <stop offset="100%" stop-color="#111a33" />
+      </linearGradient>
+
+      <filter id="softShadow" x="-20%" y="-20%" width="140%" height="140%">
+        <feDropShadow dx="0" dy="4" stdDeviation="5" flood-color="#040814" flood-opacity="0.15"/>
+      </filter>
+    </defs>
+
+    <g transform="translate(10, 10)">
+      <rect x="10" y="30" width="42" height="115" rx="14" fill="url(#boxBlueGrad)" filter="url(#softShadow)"/>
+      
+      <rect x="42" y="32" width="42" height="85" rx="14" transform="rotate(-28 42 32)" fill="url(#boxBlueGrad)"/>
+      
+      <rect x="110" y="30" width="42" height="85" rx="14" transform="rotate(28 110 30)" fill="url(#boxDarkGrad)"/>
+      
+      <rect x="125" y="30" width="42" height="115" rx="14" fill="url(#boxDarkGrad)" filter="url(#softShadow)"/>
+
+      <circle cx="88" cy="80" r="13" fill="#FFFFFF" filter="url(#softShadow)"/>
+      <circle cx="88" cy="80" r="7" fill="#10b3ef"/>
+    </g>
+
+    <text 
+      x="210" 
+      y="112" 
+      font-family="ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" 
+      font-size="52" 
+      letter-spacing="-0.03em"
+    >
+      <tspan font-weight="800" fill="#040814">Modul</tspan><tspan font-weight="300" fill="#0055ff">Ops</tspan>
+    </text>
+  </svg>
+);
+
+// ── COMPONENT ─────────────────────────────────────────────────────────────────
+export default function LoginPage() {
+  const [form, setForm] = useState({ email: "", password: "", remember: true });
+  const [showPwd, setShowPwd] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+
+  const handleChange = (e) => {
+    const { name, value, type, checked } = e.target;
+    setForm((prev) => ({ ...prev, [name]: type === "checkbox" ? checked : value }));
+    if (error) setError("");
+  };
+
+  const handleSubmit = async (e) => {
     e.preventDefault();
+    setError("");
+
+    if (!form.email.trim() || !form.password.trim()) {
+      setError("Veuillez remplir tous les champs.");
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const res = await fetch(`${API_BASE}/api/login`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Accept: "application/json" },
+        body: JSON.stringify({
+          email: form.email,
+          password: form.password,
+          remember: form.remember,
+        }),
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        const msg =
+          data?.errors?.email?.[0] ||
+          data?.errors?.password?.[0] ||
+          data?.message ||
+          "Identifiants incorrects.";
+        setError(msg);
+        return;
+      }
+
+      if (data.token) {
+        localStorage.setItem("auth_token", data.token);
+      }
+
+      window.location.href = "/dashboard";
+    } catch {
+      setError("Impossible de contacter le serveur. Réessaie plus tard.");
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
-    /* FOND GLOBAL : Divisé exactement en deux couleurs pour suivre la ligne de la carte */
-    <div className="min-h-screen w-screen flex items-center justify-center p-6 font-sans antialiased relative overflow-hidden bg-[#19191b]">
-      
-      {/* Côté droit du fond en violet */}
-      <div className="absolute top-0 right-0 w-1/2 h-full bg-[#9461e1] hidden md:block z-0"></div>
+    <div className="min-h-screen bg-slate-100 flex items-center justify-center p-4 font-[Poppins]">
+      <div className="flex w-full max-w-4xl rounded-2xl overflow-hidden shadow-2xl min-h-[620px]">
 
-      {/* 
-        CONTAINER CENTRAL 
-        Regarde l'ombre : shadow-[0_0_100px_rgba(0,0,0,0.6)] récrée exactement le contour diffus que tu as entouré.
-      */}
-      <div className="w-full max-w-[960px] aspect-[1.3/1] bg-[#19191b] rounded-[32px] overflow-hidden flex flex-col md:flex-row z-10 
-                      shadow-[0_0_100px_rgba(0,0,0,0.65)] border border-white/[0.03]">
-        
-        {/* ================= SECTION GAUCHE : FORMULAIRE SOMBRE ================= */}
-        <div className="w-full md:w-[45%] p-10 lg:p-16 flex flex-col justify-between bg-[#19191b]">
-          <div className="hidden md:block"></div>
+        {/* ── LEFT PANEL ──────────────────────────────────────────────────── */}
+        <div
+          className="hidden md:flex md:w-[45%] flex-col justify-center p-6 relative overflow-hidden"
+          style={{
+            background: "linear-gradient(160deg, #0d1b3e 0%, #0e2254 40%, #112b6e 70%, #1a3a8a 100%)",
+          }}
+        >
+          <div className="absolute -top-10 -right-14 w-48 h-48 rounded-full"
+            style={{ background: "radial-gradient(circle, rgba(60,90,220,0.35) 0%, transparent 70%)" }} />
+          <div className="absolute bottom-8 -left-10 w-40 h-40 rounded-full"
+            style={{ background: "radial-gradient(circle, rgba(80,100,255,0.22) 0%, transparent 70%)" }} />
 
-          <div className="w-full max-w-[290px] mx-auto my-auto space-y-7">
-            <div>
-              <h1 className="text-3xl font-bold text-white tracking-wide mb-2">
-                Login
-              </h1>
-              <p className="text-xs text-zinc-400">
-                Enter your account details
-              </p>
-            </div>
-
-            <form onSubmit={handleSubmit} className="space-y-5">
-              <ExactInput
-                type="text"
-                placeholder="Username"
-                value={username}
-                onChange={(e) => setUsername(e.target.value)}
-              />
-
-              <div className="relative">
-                <ExactInput
-                  type="password"
-                  placeholder="Password"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                />
-                <button type="button" className="absolute right-0 bottom-3 text-zinc-500">
-                  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-4 h-4">
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M3.98 8.223A10.477 10.477 0 0 0 1.934 12C3.226 16.338 7.244 19.5 12 19.5c.993 0 1.953-.138 2.863-.395M6.228 6.228A10.451 10.451 0 0 1 12 4.5c4.756 0 8.773 3.162 10.065 7.498a10.522 10.522 0 0 1-4.293 5.774M6.228 6.228 3 3m3.228 3.228 3.65 3.65m7.894 7.894L21 21m-3.228-3.228-3.65-3.65m0 0a3 3 0 1 0-4.243-4.243m4.242 4.242L9.88 9.88" />
-                  </svg>
-                </button>
-              </div>
-
-              <div className="text-left pt-1">
-                <a href="#" className="text-xs text-zinc-500 hover:text-zinc-400 transition-colors">
-                  Forgot Password?
-                </a>
-              </div>
-
-              <div className="pt-2">
-                <button
-                  type="submit"
-                  className="w-full py-2.5 bg-[#9461e1] hover:bg-[#8352ce] text-white font-medium rounded-xl text-xs tracking-wide transition-all active:scale-[0.99]"
-                >
-                  Login
-                </button>
-              </div>
-            </form>
-          </div>
-
-          <div className="w-full max-w-[290px] mx-auto flex items-center justify-between text-xs pt-4">
-            <span className="text-zinc-600">Don't have an account?</span>
-            <button className="px-3 py-1.5 bg-[#222224] hover:bg-[#2b2b2e] text-zinc-300 font-medium rounded-lg text-[11px] transition-colors">
-              Sign up
-            </button>
-          </div>
-        </div>
-
-        {/* ================= SECTION DROITE : PANNEAU VISUEL VIOLET ================= */}
-        <div className="w-full md:w-[55%] bg-[#9461e1] p-12 lg:p-16 flex flex-col justify-between relative overflow-hidden">
-          
-          {/* Formes fluides d'arrière-plan */}
-          <div className="absolute inset-0 z-0 opacity-15 pointer-events-none">
-            <div className="absolute -top-12 -right-12 w-[400px] h-[400px] bg-white rounded-[40%] rotate-45"></div>
-            <div className="absolute top-20 -left-20 w-[300px] h-[300px] bg-purple-200 rounded-[50%]"></div>
-          </div>
-
-          <div className="z-10 text-white mt-4 space-y-2">
-            <h2 className="text-4xl lg:text-[44px] font-bold tracking-tight leading-none">
-              Welcome to <br />student portal
-            </h2>
-            <p className="text-[11px] text-purple-100/70 font-normal">
-              Login to access your account
-            </p>
-          </div>
-
-          <div className="z-10 w-full flex justify-center items-end mt-auto">
+          <div className="w-full flex items-center justify-center relative z-10">
             <img 
-              src="https://illustrations.popsy.co/white/work-from-home.svg" 
-              alt="Students Visual" 
-              className="w-full max-w-[340px] h-auto max-h-[250px] object-contain"
+              src={loginImg} 
+              alt="Login illustration" 
+              className="max-w-[105%] object-contain"
             />
           </div>
         </div>
 
+        {/* ── RIGHT PANEL ─────────────────────────────────────────────────── */}
+        <div className="flex-1 bg-white px-6 sm:px-14 pt-4 pb-12 flex flex-col justify-center relative">
+          
+          <div className="absolute -top-8 right-16 w-28 h-28 rounded-full pointer-events-none"
+            style={{ background: "radial-gradient(circle, rgba(30,60,180,0.08) 0%, transparent 70%)" }} />
+
+          <div className="max-w-md mx-auto w-full flex flex-col">
+            
+            {/* FORCE LE BLOC EXTÉRIEUR À SE CENTRER SANS MODIFIER LE SVG */}
+            <div className="w-full flex justify-center mb-4">
+              <div className="w-[290px] h-auto flex items-center justify-center -ml-4">
+                <ModulOpsLogo />
+              </div>
+            </div>
+
+            {/* TITRE */}
+            <h1 className="text-2xl font-normal text-gray-900 leading-snug mb-7 text-center sm:text-left">
+              <span className="font-bold">Log In</span> to your account
+              <br />to continue
+            </h1>
+
+            <form onSubmit={handleSubmit} noValidate className="flex flex-col gap-0 w-full">
+
+              {/* Email */}
+              <div className="mb-4">
+                <label htmlFor="email" className="block text-xs font-semibold text-gray-400 uppercase tracking-wider mb-1.5">
+                  Username or Email
+                </label>
+                <input
+                  id="email"
+                  name="email"
+                  type="email"
+                  autoComplete="email"
+                  placeholder="yourmail@mail.com"
+                  value={form.email}
+                  onChange={handleChange}
+                  className="w-full h-11 bg-slate-50 border border-slate-200 rounded-lg px-3.5
+                             text-[13px] text-gray-800 placeholder-gray-300
+                             outline-none focus:border-blue-500 focus:bg-white transition"
+                />
+              </div>
+
+              {/* Password */}
+              <div className="mb-4 relative">
+                <label htmlFor="password" className="block text-xs font-semibold text-gray-400 uppercase tracking-wider mb-1.5">
+                  Password
+                </label>
+                <input
+                  id="password"
+                  name="password"
+                  type={showPwd ? "text" : "password"}
+                  autoComplete="current-password"
+                  placeholder="••••••••••"
+                  value={form.password}
+                  onChange={handleChange}
+                  className="w-full h-11 bg-slate-50 border border-slate-200 rounded-lg px-3.5 pr-10
+                             text-[13px] text-gray-800 placeholder-gray-300
+                             outline-none focus:border-blue-500 focus:bg-white transition"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPwd((v) => !v)}
+                  className="absolute right-3 bottom-3 text-gray-400 hover:text-gray-600 transition-colors"
+                  aria-label="Afficher / masquer le mot de passe"
+                >
+                  {showPwd ? <EyeClosed /> : <EyeOpen />}
+                </button>
+              </div>
+
+              {/* Remember me */}
+              <div className="flex items-center gap-2 mb-5">
+                <input
+                  id="remember"
+                  name="remember"
+                  type="checkbox"
+                  checked={form.remember}
+                  onChange={handleChange}
+                  className="w-4 h-4 accent-blue-600 cursor-pointer"
+                />
+                <label htmlFor="remember" className="text-xs text-gray-500 cursor-pointer select-none">
+                  Remember Me
+                </label>
+              </div>
+
+              {/* Error message */}
+              {error && (
+                <p className="text-red-500 text-xs mb-4 bg-red-50 border border-red-200 rounded-lg px-3 py-2">
+                  {error}
+                </p>
+              )}
+
+              {/* Submit */}
+              <button
+                type="submit"
+                disabled={loading}
+                className="w-full h-12 rounded-lg text-white text-sm font-semibold tracking-widest uppercase
+                           transition-all duration-200 hover:opacity-90 hover:-translate-y-0.5
+                           active:translate-y-0 disabled:opacity-60 disabled:cursor-not-allowed"
+                style={{
+                  background: loading
+                    ? "#6b8dd6"
+                    : "linear-gradient(135deg, #1c3fbb 0%, #2252d4 50%, #3568ef 100%)",
+                }}
+              >
+                {loading ? "Connexion…" : "LOG IN"}
+              </button>
+            </form>
+
+            <a href="/forgot-password"
+              className="block text-center sm:text-right text-xs text-blue-500 italic mt-4 hover:text-blue-700 transition-colors">
+              forgot password?
+            </a>
+          </div>
+
+        </div>
       </div>
     </div>
   );
