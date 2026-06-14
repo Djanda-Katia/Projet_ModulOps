@@ -6,61 +6,73 @@ use Illuminate\Http\Request;
 use App\Models\User;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Auth;
+use App\Http\Controllers\Traits\LogsAudit;
 
 class AdminController extends Controller
 {
+    // AJOUT : on importe le trait d'audit
+    use LogsAudit;
+
     // L'Admin liste tous les utilisateurs
     public function index()
     {
         return User::orderBy('created_at', 'desc')->get();
     }
 
-    // L'Admin crée un compte utilisateur (Point 1.1 / Cahier des charges)
+    // L'Admin crée un compte utilisateur
     public function store(Request $request)
     {
-        // Correction : Modification de 'name' pour concorder avec 'nom' et 'prenom' de la migration users
         $request->validate([
-            'nom' => 'required|string|max:255',
-            'prenom' => 'required|string|max:255',
-            'email' => 'required|string|email|max:255|unique:users',
+            'nom'      => 'required|string|max:255',
+            'prenom'   => 'required|string|max:255',
+            'email'    => 'required|string|email|max:255|unique:users',
             'password' => 'required|string|min:6',
-            'fonction' => 'nullable|string|max:255', // Permet d'ajouter son poste directement
-            'role_id' => 'required|integer|in:1,2,3,4' // 1:Employé, 2:Responsable, 3:Technicien, 4:Admin
+            'fonction' => 'nullable|string|max:255',
+            'role_id'  => 'required|integer|in:1,2,3,4'
         ]);
 
-        // Insertion avec les bonnes clés de colonnes de base de données
         $user = User::create([
-            'nom' => $request->nom,
-            'prenom' => $request->prenom,
-            'email' => $request->email,
+            'nom'      => $request->nom,
+            'prenom'   => $request->prenom,
+            'email'    => $request->email,
             'password' => Hash::make($request->password),
             'fonction' => $request->fonction,
-            'role_id' => $request->role_id,
+            'role_id'  => $request->role_id,
         ]);
+
+        // AUDIT : création de compte
+        $this->logAudit("Création du compte utilisateur : {$user->nom} {$user->prenom} ({$user->email}) — Rôle ID : {$user->role_id}");
 
         return response()->json(['message' => 'Utilisateur créé avec succès', 'user' => $user], 201);
     }
 
-    // L'Admin modifie le rôle d'un utilisateur (Point 1.1)
-    public function modifierRole(Request $request, int $id) 
+    // L'Admin modifie le rôle d'un utilisateur
+    public function modifierRole(Request $request, int $id)
     {
         $request->validate([
             'role_id' => 'required|integer|in:1,2,3,4'
         ]);
 
         $user = User::findOrFail($id);
+        $ancienRole = $user->role_id;
         $user->update(['role_id' => $request->role_id]);
+
+        // AUDIT : modification de rôle
+        $this->logAudit("Modification du rôle de {$user->nom} {$user->prenom} : Rôle {$ancienRole} → Rôle {$request->role_id}");
 
         return response()->json(['message' => 'Rôle mis à jour avec succès', 'user' => $user]);
     }
 
-    // Consulter et exporter le Journal d'Audit Global en CSV (Point 1.1)
+    // Exporter le Journal d'Audit Global en CSV
     public function exporterAudit()
     {
         $audits = \App\Models\Audit::orderBy('created_at', 'desc')->get();
-        
+
+        // AUDIT : export du journal
+        $this->logAudit("Export du journal d'audit global en CSV");
+
         $filename = "journal_audit_" . date('Y-m-d') . ".csv";
-        $headers = [
+        $headers  = [
             "Content-type"        => "text/csv; charset=UTF-8",
             "Content-Disposition" => "attachment; filename=$filename",
             "Pragma"              => "no-cache",
@@ -70,9 +82,8 @@ class AdminController extends Controller
 
         $columns = ['ID', 'Action', 'Utilisateur', 'Date'];
 
-        $callback = function() use($audits, $columns) {
+        $callback = function () use ($audits, $columns) {
             $file = fopen('php://output', 'w');
-            // Ajouter la ligne d'en-tête du CSV
             fputcsv($file, $columns, ';');
 
             foreach ($audits as $audit) {

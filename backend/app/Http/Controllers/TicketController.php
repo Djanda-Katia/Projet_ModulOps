@@ -8,40 +8,59 @@ use App\Models\CommentaireTicket;
 use App\Models\Notification;
 use App\Models\User;
 use Illuminate\Support\Facades\Auth;
+use App\Http\Controllers\Traits\LogsAudit;
 
 class TicketController extends Controller
 {
-    // Liste des tickets filtrée selon le rôle
+    use LogsAudit;
+
+    /**
+     * Liste des tickets filtrée selon le rôle
+     */
     public function index()
     {
         $user = Auth::user();
 
-        // Le technicien (rôle 3) voit les tickets qui lui sont assignés
+        // Le technicien (rôle 3) voit uniquement les tickets qui lui sont assignés
         if ($user->role_id === 3) {
-            return Ticket::where('technicien_id', $user->id)->orderBy('created_at', 'desc')->get();
+            return Ticket::where('technicien_id', $user->id)
+                ->orderBy('created_at', 'desc')
+                ->get();
         }
 
-        // L'employé voit ses propres tickets soumis
-        return Ticket::where('user_id', $user->id)->orderBy('created_at', 'desc')->get();
+        // L'employé et le responsable voient leurs propres tickets soumis
+        return Ticket::where('user_id', $user->id)
+            ->orderBy('created_at', 'desc')
+            ->get();
     }
 
     /**
-     * Création d'un ticket avec ta classification par mots-clés conservée intacte !
+     * Création d'un ticket avec classification par mots-clés et attribution MANUELLE du technicien
+     * CDC 4.4 : c'est le créateur du ticket (employé ou responsable) qui choisit le technicien
      */
     public function store(Request $request)
     {
         $request->validate([
-            'titre' => 'required|string|max:255',
-            'description' => 'required|string',
-            'categorie' => 'required|string'
+            'titre'         => 'required|string|max:255',
+            'description'   => 'required|string',
+            'categorie'     => 'required|string',
+            'technicien_id' => 'required|exists:users,id',
         ]);
 
-        $description = strtolower($request->description);
-        $titre = strtolower($request->titre);
-        $priorite = 'Basse'; // Statut par défaut si aucun mot-clé n'est matché
+        // Vérification que l'utilisateur choisi est bien un technicien (rôle 3)
+        $technicien = User::findOrFail($request->technicien_id);
+        if ($technicien->role_id !== 3) {
+            return response()->json([
+                'message' => "L'utilisateur sélectionné n'est pas un technicien."
+            ], 422);
+        }
 
-        // CONSERVATION DE TES MOTS-CLÉS EXACTS
-        $motsClesHaute = ['panne', 'bloqué', 'impossible', 'urgent', 'crash', 'serveur', 'incendie', 'coupure'];
+        // Classification automatique de la priorité par mots-clés (CDC 4.4)
+        $description = strtolower($request->description);
+        $titre       = strtolower($request->titre);
+        $priorite    = 'Basse';
+
+        $motsClesHaute   = ['panne', 'bloqué', 'impossible', 'urgent', 'crash', 'serveur', 'incendie', 'coupure'];
         $motsClesMoyenne = ['lent', 'problème', 'erreur', 'imprimante', 'accès', 'logiciel', 'bug'];
 
         foreach ($motsClesHaute as $mot) {
@@ -60,60 +79,86 @@ class TicketController extends Controller
             }
         }
 
-        // Attribution automatique à un technicien disponible (Rôle 3)
-        $technicien = User::where('role_id', 3)->inRandomOrder()->first();
-
         $ticket = Ticket::create([
-            'user_id' => Auth::id(),
-            'technicien_id' => $technicien ? $technicien->id : null,
-            'titre' => $request->titre,
-            'description' => $request->description,
-            'categorie' => $request->categorie,
-            'priorite' => $priorite, // Appliqué uniquement sur le ticket
-            'statut' => 'Ouvert'
+            'user_id'       => Auth::id(),
+            'technicien_id' => $technicien->id,
+            'titre'         => $request->titre,
+            'description'   => $request->description,
+            'categorie'     => $request->categorie,
+            'priorite'      => $priorite,
+            'statut'        => 'Ouvert'
         ]);
 
-        // Notification au technicien assigné
-        if ($technicien) {
-            Notification::create([
-                'destinataire_id' => $technicien->id,
-                'type' => 'ticket_assigne',
-                'message' => "Un nouveau ticket (Priorité : {$priorite}) vous a été attribué : '{$ticket->titre}'.",
-                'lu' => false
-            ]);
-        }
+        // CDC 4.7 : Notification au technicien lors de l'assignation
+        Notification::create([
+            'destinataire_id' => $technicien->id,
+            'type'            => 'ticket_assigne',
+            'message'         => "Un nouveau ticket (Priorité : {$priorite}) vous a été attribué : '{$ticket->titre}'.",
+            'lu'              => false
+        ]);
 
-        return response()->json(['message' => 'Ticket créé avec succès', 'priorite' => $priorite, 'data' => $ticket], 201);
+        // AUDIT
+        $createur = Auth::user();
+        $this->logAudit("Création du ticket '{$ticket->titre}' (Priorité : {$priorite}) par {$createur->nom} {$createur->prenom}, assigné à {$technicien->nom} {$technicien->prenom}.");
+
+        return response()->json([
+            'message'  => 'Ticket créé avec succès',
+            'priorite' => $priorite,
+            'data'     => $ticket
+        ], 201);
     }
 
-    // Le technicien ajoute un commentaire et passe le statut à "Résolu"
+    /**
+     * Le technicien ajoute un commentaire et peut changer le statut (En cours / Résolu)
+     * CORRECTION : seul le technicien assigné à ce ticket peut commenter.
+     * Les employés et responsables n'ont pas accès.
+     */
     public function ajouterCommentaire(Request $request, int $id)
     {
+        // Vérifier que l'utilisateur connecté est un technicien (rôle 3)
+        if (Auth::user()->role_id !== 3) {
+            return response()->json(['message' => 'Seul un technicien peut ajouter un commentaire.'], 403);
+        }
+
         $request->validate([
             'contenu' => 'required|string',
-            'statut' => 'nullable|in:En cours,Résolu'
+            'statut'  => 'nullable|in:En cours,Résolu'
         ]);
 
         $ticket = Ticket::findOrFail($id);
 
-        // Insertion dans commentaires_ticket avec tes bonnes colonnes (auteur_id, contenu)
+        // Vérifier que ce technicien est bien celui assigné au ticket
+        if ($ticket->technicien_id !== Auth::id()) {
+            return response()->json(['message' => 'Ce ticket ne vous est pas assigné.'], 403);
+        }
+
         CommentaireTicket::create([
             'ticket_id' => $ticket->id,
             'auteur_id' => Auth::id(),
-            'contenu' => $request->contenu
+            'contenu'   => $request->contenu
         ]);
 
         if ($request->has('statut')) {
             $ticket->update(['statut' => $request->statut]);
 
-            // Si le ticket est résolu, on avertit l'employé pour qu'il vienne confirmer
+            // CDC 4.7 : Ticket résolu → notification au créateur du ticket
             if ($request->statut === 'Résolu') {
                 Notification::create([
                     'destinataire_id' => $ticket->user_id,
-                    'type' => 'ticket_resolu',
-                    'message' => "Votre ticket '{$ticket->titre}' a été marqué comme Résolu. Veuillez confirmer la résolution.",
-                    'lu' => false
+                    'type'            => 'ticket_resolu',
+                    'message'         => "Votre ticket '{$ticket->titre}' a été marqué comme Résolu. Veuillez confirmer la résolution.",
+                    'lu'              => false
                 ]);
+
+                // AUDIT
+                $technicien = Auth::user();
+                $this->logAudit("Ticket '{$ticket->titre}' marqué comme Résolu par {$technicien->nom} {$technicien->prenom}.");
+            }
+
+            if ($request->statut === 'En cours') {
+                // AUDIT
+                $technicien = Auth::user();
+                $this->logAudit("Ticket '{$ticket->titre}' passé En cours par {$technicien->nom} {$technicien->prenom}.");
             }
         }
 
@@ -121,29 +166,35 @@ class TicketController extends Controller
     }
 
     /**
-     * L'employé confirme que l'incident est bel et bien réglé (Résolu -> Fermé)
+     * L'employé ou le responsable confirme que le ticket est réglé (Résolu → Fermé)
      */
     public function confirmerResolution(int $id)
     {
-        // Seul l'employé propriétaire du ticket peut confirmer
-        $ticket = Ticket::where('id', $id)->where('user_id', Auth::id())->firstOrFail();
+        $ticket = Ticket::where('id', $id)
+            ->where('user_id', Auth::id())
+            ->firstOrFail();
 
         if ($ticket->statut !== 'Résolu') {
-            return response()->json(['message' => 'Vous ne pouvez pas confirmer un ticket qui n\'est pas à l\'état résolu.'], 422);
+            return response()->json([
+                'message' => 'Vous ne pouvez pas confirmer un ticket qui n\'est pas à l\'état Résolu.'
+            ], 422);
         }
 
-        // Passage à l'état final verrouillé
         $ticket->update(['statut' => 'Fermé']);
 
-        // Notification au technicien pour boucler le circuit (Point 4.7)
+        // CDC 4.7 : Ticket fermé → notification au technicien
         if ($ticket->technicien_id) {
             Notification::create([
                 'destinataire_id' => $ticket->technicien_id,
-                'type' => 'confirmation_resolution',
-                'message' => "L'employé a confirmé la bonne résolution du ticket : '{$ticket->titre}'. Le ticket est fermé.",
-                'lu' => false
+                'type'            => 'ticket_ferme',
+                'message'         => "Le ticket '{$ticket->titre}' a été confirmé et fermé. Merci pour votre intervention.",
+                'lu'              => false
             ]);
         }
+
+        // AUDIT
+        $confirmateur = Auth::user();
+        $this->logAudit("Ticket '{$ticket->titre}' fermé et confirmé par {$confirmateur->nom} {$confirmateur->prenom}.");
 
         return response()->json(['message' => 'Merci pour votre confirmation. Le ticket est maintenant fermé.']);
     }

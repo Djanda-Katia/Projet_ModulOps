@@ -9,11 +9,10 @@ class AffectationTache extends Model
 {
     use HasFactory;
 
-    // Déclaration standard et robuste pour éviter tout problème d'interprétation d'attribut PHP 8
+    // CORRECTION : 'assigne_par' retiré car absent de la migration affectations_tache
     protected $fillable = [
-        'tache_id', 
-        'utilisateur_id', 
-        'assigne_par'
+        'tache_id',
+        'utilisateur_id',
     ];
 
     // La tâche concernée
@@ -22,7 +21,7 @@ class AffectationTache extends Model
         return $this->belongsTo(Tache::class);
     }
 
-    // L'employé à qui on a donné la tâche (Synchronisé avec 'utilisateur_id' de la migration)
+    // L'employé à qui on a donné la tâche
     public function employe()
     {
         return $this->belongsTo(User::class, 'utilisateur_id');

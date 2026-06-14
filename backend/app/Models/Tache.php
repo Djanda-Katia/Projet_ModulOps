@@ -9,12 +9,12 @@ class Tache extends Model
 {
     use HasFactory;
 
+    // CORRECTION : date_echeance supprimée du fillable (retirée du périmètre)
     protected $fillable = [
-        'user_id', 
-        'assigne_par', 
-        'titre', 
-        'description', 
-        'date_echeance', 
+        'user_id',
+        'assigne_par',
+        'titre',
+        'description',
         'statut'
     ];
 

@@ -4,13 +4,22 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
-use Illuminate\Database\Eloquent\Attributes\Fillable;
-
 
 class Ticket extends Model
 {
     use HasFactory;
-    protected $fillable = ['user_id', 'technicien_id', 'objet', 'description', 'priorite', 'statut'];
+
+    // CORRECTION : 'objet' remplacé par 'titre', 'categorie' ajouté
+    protected $fillable = [
+        'user_id',
+        'technicien_id',
+        'titre',
+        'description',
+        'categorie',
+        'priorite',
+        'statut'
+    ];
+
     // L'employé qui a créé le ticket
     public function auteur()
     {
@@ -22,9 +31,10 @@ class Ticket extends Model
     {
         return $this->belongsTo(User::class, 'technicien_id');
     }
-    // Dans Ticket.php, ajoute ça en dessous de la relation auteur()
+
+    // Les commentaires du ticket
     public function commentaires()
     {
-    return $this->hasMany(CommentaireTicket::class);
+        return $this->hasMany(CommentaireTicket::class);
     }
 }
