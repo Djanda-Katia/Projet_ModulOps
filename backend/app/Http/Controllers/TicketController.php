@@ -15,23 +15,28 @@ class TicketController extends Controller
     use LogsAudit;
 
     /**
-     * Liste des tickets filtrée selon le rôle
+     * Liste des tickets filtrée selon le rôle et le statut
      */
-    public function index()
+    public function index(Request $request)
     {
         $user = Auth::user();
 
-        // Le technicien (rôle 3) voit uniquement les tickets qui lui sont assignés
+        // Construire la requête de base selon le rôle
         if ($user->role_id === 3) {
-            return Ticket::where('technicien_id', $user->id)
-                ->orderBy('created_at', 'desc')
-                ->get();
+            // Technicien : voir ses tickets assignés
+            $query = Ticket::where('technicien_id', $user->id);
+        } else {
+            // Employé ou Responsable : voir leurs propres tickets
+            $query = Ticket::where('user_id', $user->id);
         }
 
-        // L'employé et le responsable voient leurs propres tickets soumis
-        return Ticket::where('user_id', $user->id)
-            ->orderBy('created_at', 'desc')
-            ->get();
+        // Ajouter le filtre par statut si le paramètre est présent
+        if ($request->has('statut') && in_array($request->statut, ['Ouvert', 'En cours', 'Résolu', 'Fermé'])) {
+            $query->where('statut', $request->statut);
+        }
+
+        // Trier par date de création (le plus récent en premier)
+        return $query->orderBy('created_at', 'desc')->get();
     }
 
     /**
@@ -199,46 +204,28 @@ class TicketController extends Controller
         return response()->json(['message' => 'Merci pour votre confirmation. Le ticket est maintenant fermé.']);
     }
 
+    /**
+     * L'utilisateur signale un problème (rouvre le ticket)
+     */
     public function signalerProbleme(int $id)
-{
-    $ticket = Ticket::where('id', $id)
-        ->where('user_id', Auth::id())
-        ->firstOrFail();
+    {
+        $ticket = Ticket::where('id', $id)
+            ->where('user_id', Auth::id())
+            ->firstOrFail();
 
-    if ($ticket->statut !== 'Résolu') {
-        return response()->json(['message' => 'Seul un ticket résolu peut être signalé.'], 422);
+        if ($ticket->statut !== 'Résolu') {
+            return response()->json(['message' => 'Seul un ticket résolu peut être signalé.'], 422);
+        }
+
+        $ticket->update(['statut' => 'En cours']);
+
+        // Optionnel : ajouter un commentaire automatique
+        CommentaireTicket::create([
+            'ticket_id' => $ticket->id,
+            'auteur_id' => Auth::id(),
+            'contenu'   => "Le problème n'est pas résolu. Ticket rouvert."
+        ]);
+
+        return response()->json(['message' => 'Problème signalé, ticket rouvert.']);
     }
-
-    $ticket->update(['statut' => 'En cours']);
-
-    // Optionnel : ajouter un commentaire automatique
-    CommentaireTicket::create([
-        'ticket_id' => $ticket->id,
-        'auteur_id' => Auth::id(),
-        'contenu'   => "Le problème n'est pas résolu. Ticket rouvert."
-    ]);
-
-    return response()->json(['message' => 'Problème signalé, ticket rouvert.']);
-    }
-    public function index(Request $request)
-{
-    $user = Auth::user();
-
-    // Construire la requête de base selon le rôle
-    if ($user->role_id === 3) {
-        // Technicien : voir ses tickets assignés
-        $query = Ticket::where('technicien_id', $user->id);
-    } else {
-        // Employé ou Responsable : voir leurs propres tickets
-        $query = Ticket::where('user_id', $user->id);
-    }
-
-    // Ajouter le filtre par statut si le paramètre est présent
-    if ($request->has('statut') && in_array($request->statut, ['Ouvert', 'En cours', 'Résolu', 'Fermé'])) {
-        $query->where('statut', $request->statut);
-    }
-
-    // Trier par date de création (le plus récent en premier)
-    return $query->orderBy('created_at', 'desc')->get();
-}
 }
