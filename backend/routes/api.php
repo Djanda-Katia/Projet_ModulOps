@@ -38,6 +38,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/tickets', [TicketController::class, 'store']);
     Route::post('/tickets/{id}/commentaires', [TicketController::class, 'ajouterCommentaire']);
     Route::post('/tickets/{id}/confirmer', [TicketController::class, 'confirmerResolution']);
+    Route::post('/tickets/{id}/signaler', [TicketController::class, 'signalerProbleme']);
 
     // Route pour récupérer la liste des techniciens disponibles (attribution manuelle)
     Route::get('/techniciens', function () {
