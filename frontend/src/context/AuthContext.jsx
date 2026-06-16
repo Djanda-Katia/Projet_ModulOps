@@ -5,25 +5,54 @@ const AuthContext = createContext(null);
 
 // 2. Le composant "Provider" qui va envelopper notre application et diffuser les données
 export const AuthProvider = ({ children }) => {
-  const [user, setUser] = useState(null);
-  const [token, setToken] = useState(localStorage.getItem("token") || null);
-  const [loading, setLoading] = useState(true);
+  // ── SIMULATION (en attendant le vrai backend) ──
+  // Décommente l'utilisateur que tu veux tester
 
-  useEffect(() => {
-    // Au chargement de l'application, on vérifie si un utilisateur était déjà stocké
-    const savedUser = localStorage.getItem("user");
-    if (savedUser && token) {
-      setUser(JSON.parse(savedUser));
-    }
-    setLoading(false);
-  }, [token]);
+  // 🔵 UTILISATEUR EMPLOYÉ (Thomas Bernard)
+  // const [user, setUser] = useState({
+  //   id: 1,
+  //   name: "Thomas Bernard",
+  //   email: "thomas.bernard@modulops.com",
+  //   role: "Employé",
+  //   role_id: 1,
+  // });
+
+  // 🟢 UTILISATEUR RESPONSABLE (DJANDA Katia)
+  // const [user, setUser] = useState({
+  //   id: 2,
+  //   name: "DJANDA Katia",
+  //   email: "djanda.katia@modulops.com",
+  //   role: "Responsable",
+  //   role_id: 2,
+  // });
+
+  // 🟡 UTILISATEUR TECHNICIEN (Patrick Dubois)
+  const [user, setUser] = useState({
+    id: 3,
+    name: "Patrick Dubois",
+    email: "patrick.dubois@modulops.com",
+    role: "Technicien",
+    role_id: 3,
+  });
+
+  // 🔴 UTILISATEUR ADMINISTRATEUR (Hubert Tchakounté)
+  // const [user, setUser] = useState({
+  //   id: 4,
+  //   name: "Hubert Tchakounté",
+  //   email: "hubert.tchakounte@modulops.com",
+  //   role: "Administrateur",
+  //   role_id: 4,
+  // });
+
+  const [token, setToken] = useState("fake-jwt-token");
+  const [loading, setLoading] = useState(false);
 
   // Fonction pour connecter l'utilisateur (utilisée par la page Login)
   const login = (userData, tokenData) => {
     setUser(userData);
     setToken(tokenData);
     localStorage.setItem("token", tokenData);
-    localStorage.setItem("user", JSON.stringify(userData)); // On transforme l'objet en texte pour le stocker
+    localStorage.setItem("user", JSON.stringify(userData));
   };
 
   // Fonction pour déconnecter l'utilisateur

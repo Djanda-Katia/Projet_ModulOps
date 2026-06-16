@@ -1,71 +1,33 @@
-import React from "react";
 import { useAuth } from "../context/AuthContext";
 
-export default function Header() {
+export default function Header({ title }) {
   const { user } = useAuth();
 
   if (!user) return null;
 
-  // Fonction pour afficher le nom du rôle proprement avec un style adapté
-  const getRoleBadge = (roleId) => {
-    switch (parseInt(roleId)) {
-      case 1:
-        return (
-          <span className="px-2.5 py-1 text-xs font-semibold rounded-full bg-blue-50 text-blue-700 border border-blue-100">
-            💻 Employé
-          </span>
-        );
-      case 2:
-        return (
-          <span className="px-2.5 py-1 text-xs font-semibold rounded-full bg-purple-50 text-purple-700 border border-purple-100">
-            🛠️ Technicien
-          </span>
-        );
-      case 3:
-        return (
-          <span className="px-2.5 py-1 text-xs font-semibold rounded-full bg-amber-50 text-amber-700 border border-amber-100">
-            👑 Responsable
-          </span>
-        );
-      case 4:
-        return (
-          <span className="px-2.5 py-1 text-xs font-semibold rounded-full bg-red-50 text-red-700 border border-red-100">
-            🛡️ Administrateur
-          </span>
-        );
-      default:
-        return (
-          <span className="px-2.5 py-1 text-xs font-semibold rounded-full bg-gray-50 text-gray-700">
-            Utilisateur
-          </span>
-        );
-    }
-  };
-
   return (
-    <header className="h-16 bg-white border-b border-gray-100 flex items-center justify-between px-8 w-full">
-      {/* Partie gauche : Message de bienvenue */}
-      <div>
-        <h1 className="text-sm font-medium text-slate-600">
-          Bonjour,{" "}
-          <span className="font-semibold text-slate-900">
-            {user.name || "Collaborateur"}
-          </span>{" "}
-          👋
-        </h1>
-      </div>
+    <header className="h-16 bg-white border-b border-gray-200 flex items-center justify-between px-8 w-full sticky top-0 z-30">
+      {/* Titre de la page */}
+      <h1 className="text-xl font-bold text-gray-900">{title}</h1>
 
-      {/* Partie droite : Badge Rôle + Notifications */}
-      <div className="flex items-center gap-4">
-        {/* Affichage du badge de rôle dynamique */}
-        {getRoleBadge(user.role_id)}
-
-        {/* Cloche de notifications épurée */}
-        <button className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-50 rounded-xl transition-all relative">
-          🔔
-          {/* Petit point rouge pour simuler une notification non lue */}
-          <span className="absolute top-1.5 right-2 w-2 h-2 bg-red-500 rounded-full ring-2 ring-white"></span>
+      {/* Droite : Notifications + Profil */}
+      <div className="flex items-center gap-6">
+        {/* Cloche de notifications */}
+        <button className="relative p-2 text-gray-500 hover:bg-gray-50 rounded-full transition-colors">
+          <span className="material-symbols-outlined">notifications</span>
+          <span className="absolute top-1.5 right-2 w-2 h-2 bg-red-500 rounded-full border-2 border-white"></span>
         </button>
+
+        {/* Profil */}
+        <div className="flex items-center gap-3">
+          <div className="hidden sm:block text-right">
+            <p className="text-sm font-bold text-gray-800">{user.name}</p>
+            <p className="text-xs text-gray-500 capitalize">{user.role}</p>
+          </div>
+          <div className="w-10 h-10 rounded-full bg-blue-500 text-white flex items-center justify-center font-bold">
+            {user.name ? user.name.charAt(0).toUpperCase() : "U"}
+          </div>
+        </div>
       </div>
     </header>
   );

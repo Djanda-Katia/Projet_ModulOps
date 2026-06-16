@@ -1,0 +1,177 @@
+import { useState } from "react";
+import { useNavigate, Link, useSearchParams } from "react-router-dom";
+import { Visibility, VisibilityOff } from "@mui/icons-material";
+
+const API_BASE = import.meta.env.VITE_API_URL ?? "http://localhost:8000";
+
+// ── LOGO ──────────────────────────────────────────────────────────────────
+const ModulOpsLogo = () => (
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 650 220" width="100%" height="100%">
+    <defs>
+      <linearGradient id="boxBlueGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+        <stop offset="0%" stop-color="#0055ff" />
+        <stop offset="100%" stop-color="#10b3ef" />
+      </linearGradient>
+      <linearGradient id="boxDarkGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+        <stop offset="0%" stop-color="#040814" />
+        <stop offset="100%" stop-color="#111a33" />
+      </linearGradient>
+      <filter id="softShadow" x="-20%" y="-20%" width="140%" height="140%">
+        <feDropShadow dx="0" dy="4" stdDeviation="5" flood-color="#040814" flood-opacity="0.15" />
+      </filter>
+    </defs>
+    <g transform="translate(10, 10)">
+      <rect x="10" y="30" width="42" height="115" rx="14" fill="url(#boxBlueGrad)" filter="url(#softShadow)"/>
+      <rect x="42" y="32" width="42" height="85" rx="14" transform="rotate(-28 42 32)" fill="url(#boxBlueGrad)"/>
+      <rect x="110" y="30" width="42" height="85" rx="14" transform="rotate(28 110 30)" fill="url(#boxDarkGrad)"/>
+      <rect x="125" y="30" width="42" height="115" rx="14" fill="url(#boxDarkGrad)" filter="url(#softShadow)"/>
+      <circle cx="88" cy="80" r="13" fill="#FFFFFF" filter="url(#softShadow)"/>
+      <circle cx="88" cy="80" r="7" fill="#10b3ef"/>
+    </g>
+    <text x="210" y="112" fontFamily="ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" fontSize="52" letterSpacing="-0.03em">
+      <tspan fontWeight="800" fill="#040814">Modul</tspan><tspan fontWeight="300" fill="#0055ff">Ops</tspan>
+    </text>
+  </svg>
+);
+
+export default function ResetPassword() {
+  const [password, setPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [showPwd, setShowPwd] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+  const [message, setMessage] = useState("");
+  const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const token = searchParams.get("token");
+  const email = searchParams.get("email");
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setError("");
+    setMessage("");
+    if (password.length < 6) {
+      setError("Le mot de passe doit contenir au moins 6 caractères.");
+      return;
+    }
+    if (password !== confirmPassword) {
+      setError("Les mots de passe ne correspondent pas.");
+      return;
+    }
+    setLoading(true);
+    try {
+      const res = await fetch(`${API_BASE}/api/password/reset`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email, token, password, password_confirmation: confirmPassword }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.message || "Erreur lors de la réinitialisation.");
+      setMessage("Mot de passe réinitialisé avec succès !");
+      setTimeout(() => navigate("/login"), 2000);
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div className="min-h-screen bg-slate-100 flex items-center justify-center p-4">
+      <div className="w-full max-w-4xl bg-white rounded-2xl shadow-2xl overflow-hidden flex">
+        {/* Left Panel */}
+        <div className="hidden md:flex md:w-1/2 bg-gradient-to-br from-[#0d1b3e] to-[#1a3a8a] flex-col justify-center p-12 relative">
+          <div className="absolute -top-10 -right-14 w-48 h-48 bg-blue-500/20 rounded-full" />
+          <div className="absolute bottom-8 -left-10 w-40 h-40 bg-blue-500/20 rounded-full" />
+          <h2 className="text-4xl font-bold text-white mb-4 leading-tight">
+            PLATEFORME DE<br />GESTION DE<br /><span className="text-blue-400">RESSOURCES<br />HUMAINES</span>
+          </h2>
+          <p className="text-blue-200 text-sm">Bon retour sur votre outil de gestion centralisé.</p>
+          <img src="/src/assets/login-img.png" alt="Illustration" className="mt-8 max-w-full object-contain" />
+        </div>
+
+        {/* Right Panel */}
+        <div className="flex-1 p-8 sm:p-12 flex flex-col justify-center">
+          <div className="flex justify-center mb-4">
+            <div className="w-[250px]"><ModulOpsLogo /></div>
+          </div>
+          <h2 className="text-center text-xl font-bold text-gray-900 mb-2">Nouveau mot de passe</h2>
+          <p className="text-center text-gray-400 text-sm mb-8">Choisissez un mot de passe sécurisé</p>
+
+          <form onSubmit={handleSubmit} className="space-y-4">
+            {/* Email (lecture seule) */}
+            <div>
+              <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Email</label>
+              <input
+                type="email"
+                value={email || ""}
+                readOnly
+                className="w-full bg-gray-100 border border-gray-200 rounded-lg px-4 py-3 text-sm text-gray-700 outline-none cursor-not-allowed"
+              />
+            </div>
+
+            {/* Nouveau mot de passe */}
+            <div>
+              <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Nouveau mot de passe</label>
+              <div className="relative">
+                <input
+                  type={showPwd ? "text" : "password"}
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  className="w-full bg-gray-50 border border-gray-200 rounded-lg px-4 py-3 pr-10 text-sm focus:ring-2 focus:ring-blue-500 outline-none"
+                  placeholder="••••••••"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPwd(!showPwd)}
+                  className="absolute right-3 top-3 text-gray-400 hover:text-gray-600"
+                >
+                  {showPwd ? <VisibilityOff /> : <Visibility />}
+                </button>
+              </div>
+              <p className="text-xs text-gray-400 mt-1">Minimum 6 caractères</p>
+            </div>
+
+            {/* Confirmer le mot de passe */}
+            <div>
+              <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Confirmer le mot de passe</label>
+              <div className="relative">
+                <input
+                  type={showPwd ? "text" : "password"}
+                  value={confirmPassword}
+                  onChange={(e) => setConfirmPassword(e.target.value)}
+                  className="w-full bg-gray-50 border border-gray-200 rounded-lg px-4 py-3 pr-10 text-sm focus:ring-2 focus:ring-blue-500 outline-none"
+                  placeholder="••••••••"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPwd(!showPwd)}
+                  className="absolute right-3 top-3 text-gray-400 hover:text-gray-600"
+                >
+                  {showPwd ? <VisibilityOff /> : <Visibility />}
+                </button>
+              </div>
+            </div>
+
+            {error && <p className="text-red-500 text-sm bg-red-50 border border-red-200 rounded-lg px-3 py-2">{error}</p>}
+            {message && <p className="text-green-500 text-sm bg-green-50 border border-green-200 rounded-lg px-3 py-2">{message}</p>}
+
+            <button
+              type="submit"
+              disabled={loading}
+              className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 rounded-lg transition-all"
+            >
+              {loading ? "Réinitialisation..." : "RÉINITIALISER LE MOT DE PASSE"}
+            </button>
+          </form>
+
+          <div className="mt-6 text-center">
+            <Link to="/login" className="text-blue-600 hover:underline text-sm inline-flex items-center gap-1">
+              <span className="material-symbols-outlined text-base">arrow_back</span> Retour à la connexion
+            </Link>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}

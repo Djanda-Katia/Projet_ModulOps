@@ -1,40 +1,28 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 650 220" width="100%" height="100%">
-  <defs>
-    <linearGradient id="boxBlueGrad" x1="0%" y1="0%" x2="100%" y2="100%">
-      <stop offset="0%" stop-color="#0055ff" />
-      <stop offset="100%" stop-color="#10b3ef" />
-    </linearGradient>
-    
-    <linearGradient id="boxDarkGrad" x1="0%" y1="0%" x2="100%" y2="100%">
-      <stop offset="0%" stop-color="#040814" />
-      <stop offset="100%" stop-color="#111a33" />
-    </linearGradient>
-
-    <filter id="softShadow" x="-20%" y="-20%" width="140%" height="140%">
-      <feDropShadow dx="0" dy="4" stdDeviation="5" flood-color="#040814" flood-opacity="0.15"/>
-    </filter>
-  </defs>
-
-  <g transform="translate(10, 10)">
-    <rect x="10" y="30" width="42" height="115" rx="14" fill="url(#boxBlueGrad)" filter="url(#softShadow)"/>
-    
-    <rect x="42" y="32" width="42" height="85" rx="14" transform="rotate(-28 42 32)" fill="url(#boxBlueGrad)"/>
-    
-    <rect x="110" y="30" width="42" height="85" rx="14" transform="rotate(28 110 30)" fill="url(#boxDarkGrad)"/>
-    
-    <rect x="125" y="30" width="42" height="115" rx="14" fill="url(#boxDarkGrad)" filter="url(#softShadow)"/>
-
-    <circle cx="88" cy="80" r="13" fill="#FFFFFF" filter="url(#softShadow)"/>
-    <circle cx="88" cy="80" r="7" fill="#10b3ef"/>
-  </g>
-
-  <text 
-    x="210" 
-    y="112" 
-    font-family="ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" 
-    font-size="52" 
-    letter-spacing="-0.03em"
-  >
-    <tspan font-weight="800" fill="#040814">Modul</tspan><tspan font-weight="300" fill="#0055ff">Ops</tspan>
-  </text>
-</svg>
+const ModulOpsLogo = () => (
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 650 220" width="100%" height="100%">
+    <defs>
+      <linearGradient id="boxBlueGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+        <stop offset="0%" stop-color="#0055ff" />
+        <stop offset="100%" stop-color="#10b3ef" />
+      </linearGradient>
+      <linearGradient id="boxDarkGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+        <stop offset="0%" stop-color="#e2e8f0" />
+        <stop offset="100%" stop-color="#94a3b8" />
+      </linearGradient>
+      <filter id="softShadow" x="-20%" y="-20%" width="140%" height="140%">
+        <feDropShadow dx="0" dy="4" stdDeviation="5" flood-color="#040814" flood-opacity="0.15" />
+      </filter>
+    </defs>
+    <g transform="translate(10, 10)">
+      <rect x="10" y="30" width="42" height="115" rx="14" fill="url(#boxBlueGrad)" filter="url(#softShadow)"/>
+      <rect x="42" y="32" width="42" height="85" rx="14" transform="rotate(-28 42 32)" fill="url(#boxBlueGrad)"/>
+      <rect x="110" y="30" width="42" height="85" rx="14" transform="rotate(28 110 30)" fill="url(#boxDarkGrad)"/>
+      <rect x="125" y="30" width="42" height="115" rx="14" fill="url(#boxDarkGrad)" filter="url(#softShadow)"/>
+      <circle cx="88" cy="80" r="13" fill="#FFFFFF" filter="url(#softShadow)"/>
+      <circle cx="88" cy="80" r="7" fill="#10b3ef"/>
+    </g>
+    <text x="210" y="112" fontFamily="ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" fontSize="52" letterSpacing="-0.03em">
+      <tspan fontWeight="800" fill="#f1f5f9">Modul</tspan><tspan fontWeight="300" fill="#0055ff">Ops</tspan>
+    </text>
+  </svg>
+);

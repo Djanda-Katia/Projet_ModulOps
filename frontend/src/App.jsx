@@ -11,11 +11,14 @@ import Layout from "./components/Layout";
 
 // Importation de nos pages
 import Login from "./pages/Login";
-import Dashboard from "./pages/Dashboard";
-import Conges from "./pages/Conges";
-import Tickets from "./pages/Tickets";
-import Taches from "./pages/Taches";
-import AdminProfil from "./pages/AdminProfil";
+import ForgotPassword from "./pages/ForgotPassword";
+import ResetPassword from "./pages/ResetPassword";
+import EmployeeDashboard from "./pages/EmployeeDashboard";
+import EmployeeLeave from "./pages/EmployeeLeave";
+import EmployeeTickets from "./pages/EmployeeTickets";
+import EmployeeTasks from "./pages/EmployeeTasks";
+import EmployeeTicketDetail from "./pages/EmployeeTicketDetail";
+import EmployeeNotifications from "./pages/EmployeeNotifications";
 
 // 1. Barrière d'authentification de base (Connexion obligatoire)
 const CheckAuth = ({ children }) => {
@@ -43,85 +46,111 @@ function App() {
   return (
     <Router>
       <Routes>
-        {/* Route Publique : Pas de Layout, juste la page de connexion blanche */}
+        {/* Route Publique : Pas de Layout */}
         <Route path="/login" element={<Login />} />
+        <Route path="/forgot-password" element={<ForgotPassword />} />
+        <Route path="/reset-password" element={<ResetPassword />} />
 
         {/* ========================================================
-            TOUTES LES ROUTES CI-DESSOUS SONT SÉCURISÉES ET INCLUSES 
-            DANS LE LAYOUT (SIDEBAR + HEADER)
+            ROUTES SÉCURISÉES (CHECK AUTH + LAYOUT)
            ======================================================== */}
 
-        {/* 1. DASHBOARD ACCUEIL (Accessible rôles : 1, 2, 3) */}
+        {/* Dashboard (Rôles : 1, 2, 3) */}
         <Route
-          path="/dashboard"
+          path="/employee-dashboard"
           element={
             <CheckAuth>
               <RoleGate allowedRoles={[1, 2, 3]}>
                 <Layout>
-                  <Dashboard />
+                  <EmployeeDashboard />
                 </Layout>
               </RoleGate>
             </CheckAuth>
           }
         />
 
-        {/* 2. GESTION DES CONGÉS (Accessible rôles : 1, 3) */}
+        {/* Congés (Rôles : 1, 3) */}
         <Route
-          path="/conges"
+          path="/employee-leave"
           element={
             <CheckAuth>
               <RoleGate allowedRoles={[1, 3]}>
                 <Layout>
-                  <Conges />
+                  <EmployeeLeave />
                 </Layout>
               </RoleGate>
             </CheckAuth>
           }
         />
 
-        {/* 3. SUPPORT INFORMATIQUE / TICKETS (Accessible rôles : 1, 2) */}
+        {/* Tickets (Rôles : 1, 2) */}
         <Route
-          path="/tickets"
+          path="/employee-tickets"
           element={
             <CheckAuth>
               <RoleGate allowedRoles={[1, 2]}>
                 <Layout>
-                  <Tickets />
+                  <EmployeeTickets />
                 </Layout>
               </RoleGate>
             </CheckAuth>
           }
         />
 
-        {/* 4. SUIVI DES TÂCHES (Accessible rôles : 1, 2, 3) */}
+        {/* Détail Ticket (Rôles : 1, 2) */}
         <Route
-          path="/taches"
+          path="/employee-tickets/:id"
+          element={
+            <CheckAuth>
+              <RoleGate allowedRoles={[1, 2]}>
+                <Layout>
+                  <EmployeeTicketDetail />
+                </Layout>
+              </RoleGate>
+            </CheckAuth>
+          }
+        />
+
+        {/* Tâches (Rôles : 1, 2, 3) */}
+        <Route
+          path="/employee-tasks"
           element={
             <CheckAuth>
               <RoleGate allowedRoles={[1, 2, 3]}>
                 <Layout>
-                  <Taches />
+                  <EmployeeTasks />
                 </Layout>
               </RoleGate>
             </CheckAuth>
           }
         />
 
-        {/* 5. ESPACE PARAMÉTRAGE & COMPTES (Accessible rôle : 4 uniquement) */}
+        {/* Notifications (Tous rôles connectés) */}
+        <Route
+          path="/employee-notifications"
+          element={
+            <CheckAuth>
+              <Layout>
+                <EmployeeNotifications />
+              </Layout>
+            </CheckAuth>
+          }
+        />
+
+        {/* Admin (Rôle 4 uniquement) */}
         <Route
           path="/admin"
           element={
             <CheckAuth>
               <RoleGate allowedRoles={[4]}>
                 <Layout>
-                  <AdminProfil />
+                  <EmployeeDashboard /> {/* À remplacer par AdminUsers */}
                 </Layout>
               </RoleGate>
             </CheckAuth>
           }
         />
 
-        {/* Redirection globale sécurisée par défaut */}
         <Route path="*" element={<Navigate to="/login" replace />} />
       </Routes>
     </Router>
