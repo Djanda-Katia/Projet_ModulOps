@@ -1,11 +1,19 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { useAuth } from "../context/AuthContext";
 
 export default function ManagerNotifications() {
+  const { updateUnreadCount } = useAuth();
+
   const [notifications, setNotifications] = useState([
     { id: 1, type: "congé", text: "Marie Ewondo a soumis une demande de congé de 5 jours.", time: "À l'instant", read: false },
     { id: 2, type: "tâche", text: "La tâche 'Rapport Q3' a été marquée comme Terminée par Marie Ewondo.", time: "Il y a 1 heure", read: false },
     { id: 3, type: "congé", text: "Jean Kamga a soumis une demande de congé de 3 jours.", time: "Hier", read: true },
   ]);
+
+  useEffect(() => {
+    const unread = notifications.filter((n) => !n.read).length;
+    updateUnreadCount(unread);
+  }, [notifications, updateUnreadCount]);
 
   const markAllAsRead = () => {
     setNotifications(notifications.map(n => ({ ...n, read: true })));

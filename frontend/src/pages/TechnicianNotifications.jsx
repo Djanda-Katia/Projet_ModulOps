@@ -1,11 +1,19 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { useAuth } from "../context/AuthContext";
 
 export default function TechnicianNotifications() {
+  const { updateUnreadCount } = useAuth();
+
   const [notifications, setNotifications] = useState([
     { id: 1, type: "ticket", text: "Un nouveau ticket vous a été assigné : \"Erreur connexion VPN\".", time: "À l'instant", read: false },
     { id: 2, type: "ticket", text: "Le ticket \"Accès Imprimante Bureau 4\" a été résolu et fermé par l'utilisateur.", time: "Il y a 15 min", read: false },
     { id: 3, type: "ticket", text: "Le ticket \"Maintenance préventive\" vous a été assigné.", time: "Il y a 2 jours", read: true },
   ]);
+
+  useEffect(() => {
+    const unread = notifications.filter((n) => !n.read).length;
+    updateUnreadCount(unread);
+  }, [notifications, updateUnreadCount]);
 
   const markAllAsRead = () => {
     setNotifications(notifications.map(n => ({ ...n, read: true })));

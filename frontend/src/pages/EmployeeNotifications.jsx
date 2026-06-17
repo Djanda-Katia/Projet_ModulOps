@@ -1,6 +1,9 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { useAuth } from "../context/AuthContext";
 
 export default function EmployeeNotifications() {
+  const { updateUnreadCount } = useAuth();
+
   const [notifications, setNotifications] = useState([
     { id: 1, type: "congé", text: "Votre demande de congé a été approuvée.", time: "À l'instant", read: false },
     { id: 2, type: "ticket", text: "Un nouveau ticket vous a été assigné : \"Erreur connexion VPN\".", time: "Il y a 15 min", read: false },
@@ -16,6 +19,11 @@ export default function EmployeeNotifications() {
     if (type === "ticket") return "confirmation_number";
     return "assignment";
   };
+
+  useEffect(() => {
+    const unread = notifications.filter((n) => !n.read).length;
+    updateUnreadCount(unread);
+  }, [notifications, updateUnreadCount]);
 
   return (
     <div className="space-y-6">

@@ -2,21 +2,17 @@ import { useState } from "react";
 import { Link } from "react-router-dom";
 
 export default function EmployeeTicketDetail() {
-  // Simuler un statut résolu pour afficher la bannière
   const [status, setStatus] = useState("Résolu");
   const [showBanner, setShowBanner] = useState(true);
 
   return (
     <div className="space-y-6">
-      {/* Bouton Retour */}
-      <div>
-        <Link to="/tickets" className="flex items-center gap-2 text-blue-600 hover:underline text-sm font-semibold">
-          <span className="material-symbols-outlined text-base">arrow_back</span>
-          Retour à mes tickets
-        </Link>
-      </div>
+      <Link to="/employee-tickets" className="flex items-center gap-2 text-blue-600 hover:underline text-sm font-semibold">
+        <span className="material-symbols-outlined text-base">arrow_back</span>
+        Retour à mes tickets
+      </Link>
 
-      {/* Bannière Résolu (Conditionnelle) */}
+      {/* Bannière Résolu */}
       {showBanner && status === "Résolu" && (
         <div className="bg-green-50 border border-green-200 rounded-xl p-5 flex flex-col md:flex-row items-center justify-between gap-4">
           <div className="flex items-center gap-4">
@@ -51,13 +47,11 @@ export default function EmployeeTicketDetail() {
         </div>
       )}
 
-      {/* Contenu principal : 2 colonnes */}
+      {/* Contenu principal */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
-        {/* Colonne gauche (8/12) : Description et Commentaires */}
+        {/* Colonne gauche */}
         <div className="lg:col-span-8 space-y-6">
-          {/* Carte Détails du ticket */}
           <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-            {/* En-tête */}
             <div className="flex justify-between items-start mb-4">
               <div>
                 <span className="text-sm text-gray-400 font-mono">#TKT-84920</span>
@@ -65,7 +59,6 @@ export default function EmployeeTicketDetail() {
               </div>
             </div>
 
-            {/* Badges */}
             <div className="flex flex-wrap gap-2 mb-6">
               <span className="px-3 py-1 bg-gray-100 text-gray-600 rounded-full text-xs font-semibold">Matériel</span>
               <span className="px-3 py-1 bg-red-100 text-red-700 rounded-full text-xs font-semibold">Priorité Haute</span>
@@ -78,7 +71,6 @@ export default function EmployeeTicketDetail() {
               </span>
             </div>
 
-            {/* Description */}
             <div className="mb-6">
               <h4 className="text-xs font-bold text-blue-600 uppercase tracking-wider mb-2">Description</h4>
               <p className="text-gray-600 text-sm leading-relaxed">
@@ -86,11 +78,9 @@ export default function EmployeeTicketDetail() {
               </p>
             </div>
 
-            {/* Historique des commentaires */}
             <div className="border-t border-gray-100 pt-6">
               <h4 className="text-xs font-bold text-blue-600 uppercase tracking-wider mb-4">Historique des commentaires</h4>
               <div className="space-y-4">
-                {/* Commentaire 1 - Technicien */}
                 <div className="flex gap-4">
                   <div className="w-10 h-10 rounded-full bg-blue-100 flex items-center justify-center shrink-0 text-blue-700 font-bold text-xs">ML</div>
                   <div className="flex-1">
@@ -104,7 +94,6 @@ export default function EmployeeTicketDetail() {
                   </div>
                 </div>
 
-                {/* Commentaire 2 - Demandeur (Moi) */}
                 <div className="flex gap-4">
                   <div className="w-10 h-10 rounded-full bg-blue-600 flex items-center justify-center shrink-0 text-white font-bold text-xs">TB</div>
                   <div className="flex-1">
@@ -119,7 +108,6 @@ export default function EmployeeTicketDetail() {
                 </div>
               </div>
 
-              {/* Zone d'ajout de commentaire */}
               <div className="mt-6 pt-6 border-t border-gray-100">
                 <div className="flex gap-4">
                   <div className="w-10 h-10 rounded-full bg-blue-600 flex items-center justify-center shrink-0 text-white font-bold text-xs">TB</div>
@@ -141,7 +129,7 @@ export default function EmployeeTicketDetail() {
           </div>
         </div>
 
-        {/* Colonne droite (4/12) : Informations */}
+        {/* Colonne droite */}
         <div className="lg:col-span-4">
           <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
             <h3 className="text-lg font-bold text-gray-900 mb-4 flex items-center gap-2">

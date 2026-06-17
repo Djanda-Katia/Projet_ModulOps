@@ -1,7 +1,8 @@
 import { useState } from "react";
+import { Link } from "react-router-dom";
 
 export default function TechnicianTickets() {
-  const [filter, setFilter] = useState("all");
+  const [statusFilter, setStatusFilter] = useState("all");
 
   const tickets = [
     { id: 1, titre: "Problème Connexion VPN", categorie: "Infrastructure", priorite: "Haute", statut: "En cours", demandeur: "AL", date: "12 Oct 2023" },
@@ -10,7 +11,7 @@ export default function TechnicianTickets() {
     { id: 4, titre: "Demande Nouveau Poste Fixe", categorie: "Matériel", priorite: "Moyenne", statut: "Fermé", demandeur: "EB", date: "08 Oct 2023" },
   ];
 
-  const filtered = filter === "all" ? tickets : tickets.filter(t => t.statut === filter);
+  const filtered = statusFilter === "all" ? tickets : tickets.filter(t => t.statut === statusFilter);
 
   return (
     <div className="space-y-6">
@@ -20,8 +21,8 @@ export default function TechnicianTickets() {
 
       <div className="flex justify-end">
         <select
-          value={filter}
-          onChange={(e) => setFilter(e.target.value)}
+          value={statusFilter}
+          onChange={(e) => setStatusFilter(e.target.value)}
           className="bg-white border border-gray-200 rounded-lg px-4 py-2 text-sm outline-none cursor-pointer"
         >
           <option value="all">Tous les statuts</option>
@@ -32,57 +33,57 @@ export default function TechnicianTickets() {
       </div>
 
       <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
-        <div className="overflow-x-auto">
-          <table className="w-full text-left">
-            <thead className="bg-gray-50 text-gray-500 text-xs uppercase tracking-wider">
-              <tr>
-                <th className="px-6 py-3">Titre</th>
-                <th className="px-6 py-3">Catégorie</th>
-                <th className="px-6 py-3">Priorité</th>
-                <th className="px-6 py-3">Statut</th>
-                <th className="px-6 py-3 text-center">Demandeur</th>
-                <th className="px-6 py-3">Date</th>
-                <th className="px-6 py-3 text-right">Action</th>
+        <table className="w-full text-left text-sm">
+          <thead className="bg-gray-50 text-gray-500 text-xs uppercase tracking-wider">
+            <tr>
+              <th className="px-6 py-3">Titre</th>
+              <th className="px-6 py-3">Catégorie</th>
+              <th className="px-6 py-3">Priorité</th>
+              <th className="px-6 py-3">Statut</th>
+              <th className="px-6 py-3 text-center">Demandeur</th>
+              <th className="px-6 py-3">Date</th>
+              <th className="px-6 py-3 text-right">Action</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-gray-100">
+            {filtered.map((ticket) => (
+              <tr key={ticket.id} className="hover:bg-gray-50">
+                <td className="px-6 py-3 font-semibold">{ticket.titre}</td>
+                <td className="px-6 py-3 text-gray-500">{ticket.categorie}</td>
+                <td className="px-6 py-3">
+                  <span className={`px-2 py-1 rounded-full text-xs font-bold ${
+                    ticket.priorite === "Haute" ? "bg-red-100 text-red-700" :
+                    ticket.priorite === "Moyenne" ? "bg-blue-100 text-blue-700" :
+                    "bg-gray-100 text-gray-600"
+                  }`}>{ticket.priorite}</span>
+                </td>
+                <td className="px-6 py-3">
+                  <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold ${
+                    ticket.statut === "En cours" ? "bg-amber-100 text-amber-700" :
+                    ticket.statut === "Résolu" ? "bg-green-100 text-green-700" :
+                    "bg-gray-100 text-gray-600"
+                  }`}>
+                    <span className={`w-2 h-2 rounded-full ${
+                      ticket.statut === "En cours" ? "bg-amber-500" :
+                      ticket.statut === "Résolu" ? "bg-green-500" :
+                      "bg-gray-400"
+                    }`}></span>
+                    {ticket.statut}
+                  </span>
+                </td>
+                <td className="px-6 py-3 text-center">
+                  <div className="w-7 h-7 rounded-full bg-gray-200 flex items-center justify-center text-xs font-bold">{ticket.demandeur}</div>
+                </td>
+                <td className="px-6 py-3 text-gray-500">{ticket.date}</td>
+                <td className="px-6 py-3 text-right">
+                  <Link to="#" className="text-blue-600 font-bold hover:underline text-sm">
+                    Voir détails
+                  </Link>
+                </td>
               </tr>
-            </thead>
-            <tbody className="divide-y divide-gray-100 text-sm">
-              {filtered.map((ticket) => (
-                <tr key={ticket.id} className="hover:bg-gray-50">
-                  <td className="px-6 py-3 font-semibold">{ticket.titre}</td>
-                  <td className="px-6 py-3 text-gray-500">{ticket.categorie}</td>
-                  <td className="px-6 py-3">
-                    <span className={`px-2 py-1 rounded-full text-xs font-bold ${
-                      ticket.priorite === "Haute" ? "bg-red-100 text-red-700" :
-                      ticket.priorite === "Moyenne" ? "bg-blue-100 text-blue-700" :
-                      "bg-gray-100 text-gray-600"
-                    }`}>{ticket.priorite}</span>
-                  </td>
-                  <td className="px-6 py-3">
-                    <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold ${
-                      ticket.statut === "En cours" ? "bg-amber-100 text-amber-700" :
-                      ticket.statut === "Résolu" ? "bg-green-100 text-green-700" :
-                      "bg-gray-100 text-gray-600"
-                    }`}>
-                      <span className={`w-2 h-2 rounded-full ${
-                        ticket.statut === "En cours" ? "bg-amber-500" :
-                        ticket.statut === "Résolu" ? "bg-green-500" :
-                        "bg-gray-400"
-                      }`}></span>
-                      {ticket.statut}
-                    </span>
-                  </td>
-                  <td className="px-6 py-3 text-center">
-                    <div className="w-7 h-7 rounded-full bg-gray-200 flex items-center justify-center text-xs font-bold">{ticket.demandeur}</div>
-                  </td>
-                  <td className="px-6 py-3 text-gray-500">{ticket.date}</td>
-                  <td className="px-6 py-3 text-right">
-                    <a href="#" className="text-blue-600 font-bold hover:underline text-sm">Voir détails</a>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+            ))}
+          </tbody>
+        </table>
       </div>
     </div>
   );

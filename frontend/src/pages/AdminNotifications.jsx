@@ -1,11 +1,19 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { useAuth } from "../context/AuthContext";
 
 export default function AdminNotifications() {
+  const { updateUnreadCount } = useAuth();
+
   const [notifications, setNotifications] = useState([
     { id: 1, type: "user", text: "Nouveau compte créé pour Sophie Martin.", time: "À l'instant", read: false },
     { id: 2, type: "export", text: "Le rapport d'audit \"Journal_Audit_Q3_2023.csv\" a été exporté.", time: "Il y a 1 heure", read: false },
     { id: 3, type: "role", text: "Le rôle de Paul Tchinda a été modifié.", time: "Hier, 14:30", read: true },
   ]);
+
+  useEffect(() => {
+    const unread = notifications.filter((n) => !n.read).length;
+    updateUnreadCount(unread);
+  }, [notifications, updateUnreadCount]);
 
   const markAllAsRead = () => {
     setNotifications(notifications.map(n => ({ ...n, read: true })));

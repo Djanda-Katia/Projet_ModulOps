@@ -3,28 +3,28 @@ import React, { createContext, useState, useEffect, useContext } from "react";
 const AuthContext = createContext(null);
 
 export const AuthProvider = ({ children }) => {
-  // ── SIMULATION (en attendant le vrai backend) ──
-  // Décommente l'utilisateur que tu veux tester
+  // ── Simulation utilisateur ──
+  // Pour changer d'utilisateur, commente celui que tu ne veux pas et décommente celui que tu veux.
 
-  // 🔵 UTILISATEUR EMPLOYÉ (Thomas Bernard)
-  // const [user, setUser] = useState({
-  //   id: 1,
-  //   name: "Thomas Bernard",
-  //   email: "thomas.bernard@modulops.com",
-  //   role: "Employé",
-  //   role_id: 1,
-  //  });
-
-  // 🟢 UTILISATEUR RESPONSABLE (DJANDA Katia)
+  // 🔵 EMPLOYÉ (Thomas Bernard)
    const [user, setUser] = useState({
-    id: 2,
-    name: "DJANDA Katia",
-    email: "djanda.katia@modulops.com",
-    role: "Responsable",
-    role_id: 2,
-  });
+     id: 1,
+     name: "Thomas Bernard",
+     email: "thomas.bernard@modulops.com",
+     role: "Employé",
+     role_id: 1,
+   });
 
-  // 🟡 UTILISATEUR TECHNICIEN (Patrick Dubois)
+  // 🟢 RESPONSABLE (DJANDA Katia) - ACTIVÉ PAR DÉFAUT
+  //const [user, setUser] = useState({
+  //  id: 2,
+  //  name: "DJANDA Katia",
+  //  email: "djanda.katia@modulops.com",
+  //  role: "Responsable",
+  //  role_id: 2,
+  // });
+
+  // 🟡 TECHNICIEN (Patrick Dubois)
   // const [user, setUser] = useState({
   //   id: 3,
   //   name: "Patrick Dubois",
@@ -33,7 +33,7 @@ export const AuthProvider = ({ children }) => {
   //   role_id: 3,
   // });
 
-  // 🔴 UTILISATEUR ADMINISTRATEUR (Hubert Tchakounté)
+  // 🔴 ADMINISTRATEUR (Hubert Tchakounté)
   // const [user, setUser] = useState({
   //   id: 4,
   //   name: "Hubert Tchakounté",
@@ -44,6 +44,13 @@ export const AuthProvider = ({ children }) => {
 
   const [token, setToken] = useState("fake-jwt-token");
   const [loading, setLoading] = useState(false);
+
+  // ── VRAI COMPTEUR PARTAGÉ ──
+  const [unreadCount, setUnreadCount] = useState(0);
+
+  const updateUnreadCount = (count) => {
+    setUnreadCount(count);
+  };
 
   const login = (userData, tokenData) => {
     setUser(userData);
@@ -60,7 +67,17 @@ export const AuthProvider = ({ children }) => {
   };
 
   return (
-    <AuthContext.Provider value={{ user, token, loading, login, logout }}>
+    <AuthContext.Provider
+      value={{
+        user,
+        token,
+        loading,
+        login,
+        logout,
+        unreadCount,
+        updateUnreadCount,
+      }}
+    >
       {!loading && children}
     </AuthContext.Provider>
   );
