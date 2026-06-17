@@ -5,7 +5,6 @@ export default function ManagerTickets() {
   const [statusFilter, setStatusFilter] = useState("all");
   const [showModal, setShowModal] = useState(false);
 
-  // Ces IDs sont simulés pour l'instant. Ils seront remplacés par les vrais IDs du backend.
   const tickets = [
     { id: 1, titre: "Problème Accès VPN", categorie: "Infrastructure", priorite: "Haute", statut: "Ouvert", technicien: "Jean Michel", date: "12 Oct 2023" },
     { id: 2, titre: "Mise à jour Logiciel RH", categorie: "Logiciel", priorite: "Moyenne", statut: "En cours", technicien: "Sarah Alami", date: "14 Oct 2023" },
@@ -72,68 +71,67 @@ export default function ManagerTickets() {
         </select>
       </div>
 
-      <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
-        <table className="w-full text-left text-sm">
-          <thead className="bg-gray-50 text-gray-500 text-xs uppercase tracking-wider">
-            <tr>
-              <th className="px-6 py-3">Titre</th>
-              <th className="px-6 py-3">Catégorie</th>
-              <th className="px-6 py-3">Priorité</th>
-              <th className="px-6 py-3">Statut</th>
-              <th className="px-6 py-3">Technicien</th>
-              <th className="px-6 py-3">Date</th>
-              <th className="px-6 py-3 text-right">Action</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-gray-100">
-            {filtered.map((ticket) => (
-              <tr key={ticket.id} className="hover:bg-gray-50">
-                <td className="px-6 py-3 font-semibold">{ticket.titre}</td>
-                <td className="px-6 py-3 text-gray-500">{ticket.categorie}</td>
-                <td className="px-6 py-3">
-                  <span className={`px-2 py-1 rounded text-xs font-bold ${
-                    ticket.priorite === "Haute" ? "bg-red-100 text-red-700" :
-                    ticket.priorite === "Moyenne" ? "bg-blue-100 text-blue-700" :
-                    "bg-gray-100 text-gray-600"
-                  }`}>{ticket.priorite}</span>
-                </td>
-                <td className="px-6 py-3">
-                  <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold ${
-                    ticket.statut === "Ouvert" ? "bg-blue-100 text-blue-700" :
-                    ticket.statut === "En cours" ? "bg-amber-100 text-amber-700" :
-                    ticket.statut === "Résolu" ? "bg-purple-100 text-purple-700" :
-                    "bg-gray-100 text-gray-600"
-                  }`}>
-                    <span className={`w-2 h-2 rounded-full ${
-                      ticket.statut === "Ouvert" ? "bg-blue-500" :
-                      ticket.statut === "En cours" ? "bg-amber-500" :
-                      ticket.statut === "Résolu" ? "bg-purple-500" :
-                      "bg-gray-400"
-                    }`}></span>
-                    {ticket.statut}
-                  </span>
-                </td>
-                <td className="px-6 py-3">
-                  <div className="flex items-center gap-2">
+      {/* ← CORRECTION ICI */}
+      <div className="bg-white rounded-xl shadow-sm border border-gray-200">
+        <div className="overflow-x-auto">
+          <table className="w-full text-left text-sm min-w-[700px]">
+            <thead className="bg-gray-50 text-gray-500 text-xs uppercase tracking-wider">
+              <tr>
+                <th className="px-6 py-3">Titre</th>
+                <th className="px-6 py-3">Catégorie</th>
+                <th className="px-6 py-3">Priorité</th>
+                <th className="px-6 py-3">Statut</th>
+                <th className="px-6 py-3">Technicien</th>
+                <th className="px-6 py-3">Date</th>
+                <th className="px-6 py-3 text-right">Action</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-gray-100">
+              {filtered.map((ticket) => (
+                <tr key={ticket.id} className="hover:bg-gray-50">
+                  <td className="px-6 py-3 font-semibold">{ticket.titre}</td>
+                  <td className="px-6 py-3 text-gray-500">{ticket.categorie}</td>
+                  <td className="px-6 py-3">
+                    <span className={`px-2 py-1 rounded text-xs font-bold ${
+                      ticket.priorite === "Haute" ? "bg-red-100 text-red-700" :
+                      ticket.priorite === "Moyenne" ? "bg-blue-100 text-blue-700" :
+                      "bg-gray-100 text-gray-600"
+                    }`}>{ticket.priorite}</span>
+                  </td>
+                  <td className="px-6 py-3">
+                    <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold ${
+                      ticket.statut === "Ouvert" ? "bg-blue-100 text-blue-700" :
+                      ticket.statut === "En cours" ? "bg-amber-100 text-amber-700" :
+                      ticket.statut === "Résolu" ? "bg-purple-100 text-purple-700" :
+                      "bg-gray-100 text-gray-600"
+                    }`}>
+                      <span className={`w-2 h-2 rounded-full ${
+                        ticket.statut === "Ouvert" ? "bg-blue-500" :
+                        ticket.statut === "En cours" ? "bg-amber-500" :
+                        ticket.statut === "Résolu" ? "bg-purple-500" :
+                        "bg-gray-400"
+                      }`}></span>
+                      {ticket.statut}
+                    </span>
+                  </td>
+                  <td className="px-6 py-3">
                     <div className="w-7 h-7 rounded-full bg-gray-200 flex items-center justify-center text-xs font-bold">
                       {ticket.technicien.split(" ").map(n => n[0]).join("")}
                     </div>
-                  </div>
-                </td>
-                <td className="px-6 py-3 text-gray-500">{ticket.date}</td>
-                <td className="px-6 py-3 text-right">
-                  {/* ← MAIN CHANGEMENT : Lien dynamique vers /manager-tickets/ID */}
-                  <Link to={`/manager-tickets/${ticket.id}`} className="text-blue-600 font-bold hover:underline text-sm">
-                    Voir détails
-                  </Link>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+                  </td>
+                  <td className="px-6 py-3 text-gray-500">{ticket.date}</td>
+                  <td className="px-6 py-3 text-right">
+                    <Link to={`/manager-tickets/${ticket.id}`} className="text-blue-600 font-bold hover:underline text-sm">
+                      Voir détails
+                    </Link>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
       </div>
 
-      {/* Modale Créer un ticket (inchangée) */}
       {showModal && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
           <div className="bg-white w-full max-w-lg rounded-2xl shadow-2xl overflow-hidden">

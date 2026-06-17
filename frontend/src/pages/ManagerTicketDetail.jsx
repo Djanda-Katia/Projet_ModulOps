@@ -1,10 +1,9 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { Link, useParams } from "react-router-dom";
 
 export default function ManagerTicketDetail() {
-  const { id } = useParams(); // Récupère l'ID depuis l'URL
+  const { id } = useParams();
 
-  // Simulation des données (normalement, on ferait un fetch vers le backend avec cet ID)
   const ticketData = {
     1: {
       id: 1,
@@ -48,12 +47,12 @@ export default function ManagerTicketDetail() {
     },
   };
 
-  const [ticket, setTicket] = useState(ticketData[id]);
+  const ticket = ticketData[id];
+  const [status, setStatus] = useState(ticket?.statut || "En cours");
   const [showBanner, setShowBanner] = useState(ticket?.statut === "Résolu");
 
-  // Si l'ID n'existe pas dans les données simulées
   if (!ticket) {
-    return <div className="text-center text-red-500 p-8">Ticket introuvable (ID: {id})</div>;
+    return <div className="text-center text-red-500 p-8">Ticket introuvable</div>;
   }
 
   return (
@@ -63,8 +62,7 @@ export default function ManagerTicketDetail() {
         Retour à mes tickets
       </Link>
 
-      {/* Bannière Résolu - UNIQUEMENT si le statut est "Résolu" */}
-      {ticket.statut === "Résolu" && showBanner && (
+      {showBanner && status === "Résolu" && (
         <div className="bg-green-50 border border-green-200 rounded-xl p-5 flex flex-col md:flex-row items-center justify-between gap-4">
           <div className="flex items-center gap-4">
             <div className="w-12 h-12 bg-green-500 rounded-full flex items-center justify-center text-white shadow-sm">
@@ -78,7 +76,7 @@ export default function ManagerTicketDetail() {
           <div className="flex gap-3 w-full md:w-auto">
             <button
               onClick={() => {
-                setTicket({ ...ticket, statut: "Fermé" });
+                setStatus("Fermé");
                 setShowBanner(false);
               }}
               className="flex-1 md:flex-none px-6 py-2 bg-green-600 hover:bg-green-700 text-white text-sm font-bold rounded-lg transition-all uppercase shadow-sm"
@@ -87,7 +85,7 @@ export default function ManagerTicketDetail() {
             </button>
             <button
               onClick={() => {
-                setTicket({ ...ticket, statut: "En cours" });
+                setStatus("En cours");
                 setShowBanner(false);
               }}
               className="flex-1 md:flex-none px-6 py-2 border border-red-200 text-red-600 bg-white text-sm font-bold rounded-lg hover:bg-red-50 transition-all uppercase"
@@ -98,9 +96,7 @@ export default function ManagerTicketDetail() {
         </div>
       )}
 
-      {/* Contenu principal */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
-        {/* Colonne gauche */}
         <div className="lg:col-span-8 space-y-6">
           <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
             <div className="flex justify-between items-start mb-4">
@@ -120,11 +116,11 @@ export default function ManagerTicketDetail() {
                 {ticket.priorite}
               </span>
               <span className={`px-3 py-1 rounded-full text-xs font-semibold uppercase ${
-                ticket.statut === "Résolu" || ticket.statut === "Fermé" ? "bg-blue-100 text-blue-700" :
-                ticket.statut === "En cours" ? "bg-amber-100 text-amber-700" :
+                status === "Résolu" || status === "Fermé" ? "bg-blue-100 text-blue-700" :
+                status === "En cours" ? "bg-amber-100 text-amber-700" :
                 "bg-gray-100 text-gray-600"
               }`}>
-                {ticket.statut}
+                {status}
               </span>
             </div>
 
@@ -184,7 +180,6 @@ export default function ManagerTicketDetail() {
           </div>
         </div>
 
-        {/* Colonne droite */}
         <div className="lg:col-span-4">
           <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
             <h3 className="text-lg font-bold text-gray-900 mb-4 flex items-center gap-2">
@@ -195,20 +190,18 @@ export default function ManagerTicketDetail() {
               <div className="flex justify-between items-center py-2 border-b border-gray-100">
                 <span className="text-sm text-gray-500">Statut</span>
                 <span className={`px-2 py-1 rounded text-xs font-bold uppercase ${
-                  ticket.statut === "Résolu" || ticket.statut === "Fermé" ? "bg-blue-100 text-blue-700" :
-                  ticket.statut === "En cours" ? "bg-amber-100 text-amber-700" :
+                  status === "Résolu" || status === "Fermé" ? "bg-blue-100 text-blue-700" :
+                  status === "En cours" ? "bg-amber-100 text-amber-700" :
                   "bg-gray-100 text-gray-600"
                 }`}>
-                  {ticket.statut}
+                  {status}
                 </span>
               </div>
               <div className="flex justify-between items-center py-2 border-b border-gray-100">
                 <span className="text-sm text-gray-500">Technicien</span>
                 <div className="flex items-center gap-2">
-                  <div className="w-6 h-6 rounded-full bg-blue-100 flex items-center justify-center text-blue-700 font-bold text-[10px]">
-                    {ticket.technicien.split(" ").map(n => n[0]).join("")}
-                  </div>
-                  <span className="text-sm font-medium text-gray-900">{ticket.technicien}</span>
+                  <div className="w-6 h-6 rounded-full bg-blue-100 flex items-center justify-center text-blue-700 font-bold text-[10px]">ML</div>
+                  <span className="text-sm font-medium text-gray-900">Marc Lemoine</span>
                 </div>
               </div>
               <div className="flex justify-between items-center py-2 border-b border-gray-100">

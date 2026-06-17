@@ -1,9 +1,59 @@
 import { useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useParams } from "react-router-dom";
 
 export default function EmployeeTicketDetail() {
-  const [status, setStatus] = useState("Résolu");
-  const [showBanner, setShowBanner] = useState(true);
+  const { id } = useParams();
+
+  const ticketData = {
+    1: {
+      id: 1,
+      titre: "Problème accès VPN",
+      description: "Impossible de se connecter au VPN depuis le poste RH.",
+      categorie: "Réseau",
+      priorite: "Haute",
+      statut: "Ouvert",
+      technicien: "Marc Morel",
+      date: "12 Oct 2023",
+    },
+    2: {
+      id: 2,
+      titre: "Mise à jour Logiciel RH",
+      description: "Le logiciel RH ne se met pas à jour.",
+      categorie: "Logiciel",
+      priorite: "Moyenne",
+      statut: "En cours",
+      technicien: "Sarah Diallo",
+      date: "10 Oct 2023",
+    },
+    3: {
+      id: 3,
+      titre: "Écran défectueux",
+      description: "L'écran du poste de travail scintille.",
+      categorie: "Matériel",
+      priorite: "Basse",
+      statut: "Résolu",
+      technicien: "Tom Legrand",
+      date: "08 Oct 2023",
+    },
+    4: {
+      id: 4,
+      titre: "Demande Nouveau Poste",
+      description: "Demande d'installation d'un nouveau poste fixe.",
+      categorie: "Matériel",
+      priorite: "Basse",
+      statut: "Fermé",
+      technicien: "Paul Legrand",
+      date: "05 Oct 2023",
+    },
+  };
+
+  const ticket = ticketData[id];
+  const [status, setStatus] = useState(ticket?.statut || "En cours");
+  const [showBanner, setShowBanner] = useState(ticket?.statut === "Résolu");
+
+  if (!ticket) {
+    return <div className="text-center text-red-500 p-8">Ticket introuvable</div>;
+  }
 
   return (
     <div className="space-y-6">
@@ -12,7 +62,6 @@ export default function EmployeeTicketDetail() {
         Retour à mes tickets
       </Link>
 
-      {/* Bannière Résolu */}
       {showBanner && status === "Résolu" && (
         <div className="bg-green-50 border border-green-200 rounded-xl p-5 flex flex-col md:flex-row items-center justify-between gap-4">
           <div className="flex items-center gap-4">
@@ -47,21 +96,25 @@ export default function EmployeeTicketDetail() {
         </div>
       )}
 
-      {/* Contenu principal */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
-        {/* Colonne gauche */}
         <div className="lg:col-span-8 space-y-6">
           <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
             <div className="flex justify-between items-start mb-4">
               <div>
-                <span className="text-sm text-gray-400 font-mono">#TKT-84920</span>
-                <h2 className="text-xl font-bold text-gray-900 mt-1">Dysfonctionnement du poste de travail - Écran scintillant</h2>
+                <span className="text-sm text-gray-400 font-mono">#TKT-{ticket.id}</span>
+                <h2 className="text-xl font-bold text-gray-900 mt-1">{ticket.titre}</h2>
               </div>
             </div>
 
             <div className="flex flex-wrap gap-2 mb-6">
-              <span className="px-3 py-1 bg-gray-100 text-gray-600 rounded-full text-xs font-semibold">Matériel</span>
-              <span className="px-3 py-1 bg-red-100 text-red-700 rounded-full text-xs font-semibold">Priorité Haute</span>
+              <span className="px-3 py-1 bg-gray-100 text-gray-600 rounded-full text-xs font-semibold">{ticket.categorie}</span>
+              <span className={`px-3 py-1 rounded-full text-xs font-semibold ${
+                ticket.priorite === "Haute" ? "bg-red-100 text-red-700" :
+                ticket.priorite === "Moyenne" ? "bg-blue-100 text-blue-700" :
+                "bg-gray-100 text-gray-600"
+              }`}>
+                {ticket.priorite}
+              </span>
               <span className={`px-3 py-1 rounded-full text-xs font-semibold uppercase ${
                 status === "Résolu" || status === "Fermé" ? "bg-blue-100 text-blue-700" :
                 status === "En cours" ? "bg-amber-100 text-amber-700" :
@@ -73,9 +126,7 @@ export default function EmployeeTicketDetail() {
 
             <div className="mb-6">
               <h4 className="text-xs font-bold text-blue-600 uppercase tracking-wider mb-2">Description</h4>
-              <p className="text-gray-600 text-sm leading-relaxed">
-                L'écran principal de mon poste de travail présente un scintillement constant depuis ce matin. J'ai essayé de redémarrer le système et de vérifier les connectiques HDMI, mais le problème persiste. Cela rend le travail prolongé impossible.
-              </p>
+              <p className="text-gray-600 text-sm leading-relaxed">{ticket.description}</p>
             </div>
 
             <div className="border-t border-gray-100 pt-6">
@@ -129,7 +180,6 @@ export default function EmployeeTicketDetail() {
           </div>
         </div>
 
-        {/* Colonne droite */}
         <div className="lg:col-span-4">
           <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
             <h3 className="text-lg font-bold text-gray-900 mb-4 flex items-center gap-2">
@@ -156,19 +206,21 @@ export default function EmployeeTicketDetail() {
               </div>
               <div className="flex justify-between items-center py-2 border-b border-gray-100">
                 <span className="text-sm text-gray-500">Date de création</span>
-                <span className="text-sm text-gray-900">12 Mai 2024</span>
-              </div>
-              <div className="flex justify-between items-center py-2 border-b border-gray-100">
-                <span className="text-sm text-gray-500">Dernière mise à jour</span>
-                <span className="text-sm text-gray-900">Aujourd'hui, 14:42</span>
+                <span className="text-sm text-gray-900">{ticket.date}</span>
               </div>
               <div className="flex justify-between items-center py-2 border-b border-gray-100">
                 <span className="text-sm text-gray-500">Catégorie</span>
-                <span className="text-sm text-gray-900">Matériel</span>
+                <span className="text-sm text-gray-900">{ticket.categorie}</span>
               </div>
               <div className="flex justify-between items-center py-2 border-b border-gray-100">
                 <span className="text-sm text-gray-500">Priorité</span>
-                <span className="px-2 py-1 bg-red-100 text-red-700 rounded text-xs font-bold">HAUTE</span>
+                <span className={`px-2 py-1 rounded text-xs font-bold ${
+                  ticket.priorite === "Haute" ? "bg-red-100 text-red-700" :
+                  ticket.priorite === "Moyenne" ? "bg-blue-100 text-blue-700" :
+                  "bg-gray-100 text-gray-600"
+                }`}>
+                  {ticket.priorite}
+                </span>
               </div>
             </div>
           </div>
