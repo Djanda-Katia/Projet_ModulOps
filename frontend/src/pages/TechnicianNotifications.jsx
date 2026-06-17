@@ -1,20 +1,14 @@
 import { useState } from "react";
 
-export default function EmployeeNotifications() {
+export default function TechnicianNotifications() {
   const [notifications, setNotifications] = useState([
-    { id: 1, type: "congé", text: "Votre demande de congé a été approuvée.", time: "À l'instant", read: false },
-    { id: 2, type: "ticket", text: "Un nouveau ticket vous a été assigné : \"Erreur connexion VPN\".", time: "Il y a 15 min", read: false },
-    { id: 3, type: "tâche", text: "La tâche 'Rapport Q3' vous a été assignée.", time: "Il y a 2 jours", read: true },
+    { id: 1, type: "ticket", text: "Un nouveau ticket vous a été assigné : \"Erreur connexion VPN\".", time: "À l'instant", read: false },
+    { id: 2, type: "ticket", text: "Le ticket \"Accès Imprimante Bureau 4\" a été résolu et fermé par l'utilisateur.", time: "Il y a 15 min", read: false },
+    { id: 3, type: "ticket", text: "Le ticket \"Maintenance préventive\" vous a été assigné.", time: "Il y a 2 jours", read: true },
   ]);
 
   const markAllAsRead = () => {
     setNotifications(notifications.map(n => ({ ...n, read: true })));
-  };
-
-  const getIcon = (type) => {
-    if (type === "congé") return "calendar_month";
-    if (type === "ticket") return "confirmation_number";
-    return "assignment";
   };
 
   return (
@@ -41,7 +35,7 @@ export default function EmployeeNotifications() {
               className={`p-4 flex items-start gap-4 ${notif.read ? "bg-white" : "bg-blue-50"}`}
             >
               <div className="w-10 h-10 rounded-full bg-blue-100 flex items-center justify-center text-blue-600 shrink-0">
-                <span className="material-symbols-outlined">{getIcon(notif.type)}</span>
+                <span className="material-symbols-outlined">confirmation_number</span>
               </div>
               <div className="flex-1">
                 <p className={`text-sm ${notif.read ? "text-gray-600" : "font-semibold text-gray-900"}`}>

@@ -1,9 +1,7 @@
 import React, { createContext, useState, useEffect, useContext } from "react";
 
-// 1. Création de l'antenne radio (le Context)
 const AuthContext = createContext(null);
 
-// 2. Le composant "Provider" qui va envelopper notre application et diffuser les données
 export const AuthProvider = ({ children }) => {
   // ── SIMULATION (en attendant le vrai backend) ──
   // Décommente l'utilisateur que tu veux tester
@@ -15,25 +13,25 @@ export const AuthProvider = ({ children }) => {
   //   email: "thomas.bernard@modulops.com",
   //   role: "Employé",
   //   role_id: 1,
-  // });
+  //  });
 
   // 🟢 UTILISATEUR RESPONSABLE (DJANDA Katia)
-  // const [user, setUser] = useState({
-  //   id: 2,
-  //   name: "DJANDA Katia",
-  //   email: "djanda.katia@modulops.com",
-  //   role: "Responsable",
-  //   role_id: 2,
-  // });
+   const [user, setUser] = useState({
+    id: 2,
+    name: "DJANDA Katia",
+    email: "djanda.katia@modulops.com",
+    role: "Responsable",
+    role_id: 2,
+  });
 
   // 🟡 UTILISATEUR TECHNICIEN (Patrick Dubois)
-  const [user, setUser] = useState({
-    id: 3,
-    name: "Patrick Dubois",
-    email: "patrick.dubois@modulops.com",
-    role: "Technicien",
-    role_id: 3,
-  });
+  // const [user, setUser] = useState({
+  //   id: 3,
+  //   name: "Patrick Dubois",
+  //   email: "patrick.dubois@modulops.com",
+  //   role: "Technicien",
+  //   role_id: 3,
+  // });
 
   // 🔴 UTILISATEUR ADMINISTRATEUR (Hubert Tchakounté)
   // const [user, setUser] = useState({
@@ -47,7 +45,6 @@ export const AuthProvider = ({ children }) => {
   const [token, setToken] = useState("fake-jwt-token");
   const [loading, setLoading] = useState(false);
 
-  // Fonction pour connecter l'utilisateur (utilisée par la page Login)
   const login = (userData, tokenData) => {
     setUser(userData);
     setToken(tokenData);
@@ -55,7 +52,6 @@ export const AuthProvider = ({ children }) => {
     localStorage.setItem("user", JSON.stringify(userData));
   };
 
-  // Fonction pour déconnecter l'utilisateur
   const logout = () => {
     setUser(null);
     setToken(null);
@@ -70,7 +66,6 @@ export const AuthProvider = ({ children }) => {
   );
 };
 
-// 3. Un "Hook" personnalisé pour utiliser facilement l'authentification dans nos pages
 export const useAuth = () => {
   return useContext(AuthContext);
 };

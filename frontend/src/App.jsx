@@ -5,40 +5,52 @@ import {
   Navigate,
 } from "react-router-dom";
 import { useAuth } from "./context/AuthContext";
-
-// Importation de nos composants de structure
 import Layout from "./components/Layout";
 
-// Importation de nos pages
+// Import de toutes les pages
 import Login from "./pages/Login";
 import ForgotPassword from "./pages/ForgotPassword";
 import ResetPassword from "./pages/ResetPassword";
+
+// Employé
 import EmployeeDashboard from "./pages/EmployeeDashboard";
 import EmployeeLeave from "./pages/EmployeeLeave";
 import EmployeeTickets from "./pages/EmployeeTickets";
-import EmployeeTasks from "./pages/EmployeeTasks";
 import EmployeeTicketDetail from "./pages/EmployeeTicketDetail";
+import EmployeeTasks from "./pages/EmployeeTasks";
 import EmployeeNotifications from "./pages/EmployeeNotifications";
 
-// 1. Barrière d'authentification de base (Connexion obligatoire)
+// Technicien
+import TechnicianDashboard from "./pages/TechnicianDashboard";
+import TechnicianTickets from "./pages/TechnicianTickets";
+import TechnicianTicketDetail from "./pages/TechnicianTicketDetail";
+import TechnicianNotifications from "./pages/TechnicianNotifications";
+
+// Responsable
+import ManagerDashboard from "./pages/ManagerDashboard";
+import ManagerLeave from "./pages/ManagerLeave";
+import ManagerTickets from "./pages/ManagerTickets";
+import ManagerTicketDetail from "./pages/ManagerTicketDetail";
+import ManagerTasks from "./pages/ManagerTasks";
+import ManagerNotifications from "./pages/ManagerNotifications";
+
+// Administrateur
+import AdminUsers from "./pages/AdminUsers";
+import AdminAudit from "./pages/AdminAudit";
+import AdminNotifications from "./pages/AdminNotifications";
+
 const CheckAuth = ({ children }) => {
   const { token } = useAuth();
   return token ? children : <Navigate to="/login" replace />;
 };
 
-// 2. Barrière de cloisonnement strict par Rôle (Anti-fraude URL)
 const RoleGate = ({ allowedRoles, children }) => {
   const { user } = useAuth();
-
-  if (!user) return null; // Attente du chargement de l'utilisateur
-
+  if (!user) return null;
   const currentRole = parseInt(user.role_id);
-
-  // Si le rôle de l'utilisateur n'est pas autorisé, expulsion immédiate
   if (!allowedRoles.includes(currentRole)) {
     return <Navigate to="/login" replace />;
   }
-
   return children;
 };
 
@@ -46,107 +58,197 @@ function App() {
   return (
     <Router>
       <Routes>
-        {/* Route Publique : Pas de Layout */}
+        {/* Pages publiques */}
         <Route path="/login" element={<Login />} />
         <Route path="/forgot-password" element={<ForgotPassword />} />
         <Route path="/reset-password" element={<ResetPassword />} />
 
-        {/* ========================================================
-            ROUTES SÉCURISÉES (CHECK AUTH + LAYOUT)
-           ======================================================== */}
-
-        {/* Dashboard (Rôles : 1, 2, 3) */}
+        {/* ==================== EMPLOYÉ ==================== */}
         <Route
           path="/employee-dashboard"
           element={
             <CheckAuth>
               <RoleGate allowedRoles={[1, 2, 3]}>
-                <Layout>
-                  <EmployeeDashboard />
-                </Layout>
+                <Layout><EmployeeDashboard /></Layout>
               </RoleGate>
             </CheckAuth>
           }
         />
-
-        {/* Congés (Rôles : 1, 3) */}
         <Route
           path="/employee-leave"
           element={
             <CheckAuth>
               <RoleGate allowedRoles={[1, 3]}>
-                <Layout>
-                  <EmployeeLeave />
-                </Layout>
+                <Layout><EmployeeLeave /></Layout>
               </RoleGate>
             </CheckAuth>
           }
         />
-
-        {/* Tickets (Rôles : 1, 2) */}
         <Route
           path="/employee-tickets"
           element={
             <CheckAuth>
               <RoleGate allowedRoles={[1, 2]}>
-                <Layout>
-                  <EmployeeTickets />
-                </Layout>
+                <Layout><EmployeeTickets /></Layout>
               </RoleGate>
             </CheckAuth>
           }
         />
-
-        {/* Détail Ticket (Rôles : 1, 2) */}
         <Route
           path="/employee-tickets/:id"
           element={
             <CheckAuth>
               <RoleGate allowedRoles={[1, 2]}>
-                <Layout>
-                  <EmployeeTicketDetail />
-                </Layout>
+                <Layout><EmployeeTicketDetail /></Layout>
               </RoleGate>
             </CheckAuth>
           }
         />
-
-        {/* Tâches (Rôles : 1, 2, 3) */}
         <Route
           path="/employee-tasks"
           element={
             <CheckAuth>
               <RoleGate allowedRoles={[1, 2, 3]}>
-                <Layout>
-                  <EmployeeTasks />
-                </Layout>
+                <Layout><EmployeeTasks /></Layout>
               </RoleGate>
             </CheckAuth>
           }
         />
-
-        {/* Notifications (Tous rôles connectés) */}
         <Route
           path="/employee-notifications"
           element={
             <CheckAuth>
-              <Layout>
-                <EmployeeNotifications />
-              </Layout>
+              <Layout><EmployeeNotifications /></Layout>
             </CheckAuth>
           }
         />
 
-        {/* Admin (Rôle 4 uniquement) */}
+        {/* ==================== TECHNICIEN ==================== */}
         <Route
-          path="/admin"
+          path="/technician-dashboard"
+          element={
+            <CheckAuth>
+              <RoleGate allowedRoles={[2, 3]}>
+                <Layout><TechnicianDashboard /></Layout>
+              </RoleGate>
+            </CheckAuth>
+          }
+        />
+        <Route
+          path="/technician-tickets"
+          element={
+            <CheckAuth>
+              <RoleGate allowedRoles={[2, 3]}>
+                <Layout><TechnicianTickets /></Layout>
+              </RoleGate>
+            </CheckAuth>
+          }
+        />
+        <Route
+          path="/technician-tickets/:id"
+          element={
+            <CheckAuth>
+              <RoleGate allowedRoles={[2, 3]}>
+                <Layout><TechnicianTicketDetail /></Layout>
+              </RoleGate>
+            </CheckAuth>
+          }
+        />
+        <Route
+          path="/technician-notifications"
+          element={
+            <CheckAuth>
+              <Layout><TechnicianNotifications /></Layout>
+            </CheckAuth>
+          }
+        />
+
+        {/* ==================== RESPONSABLE ==================== */}
+        <Route
+          path="/manager-dashboard"
+          element={
+            <CheckAuth>
+              <RoleGate allowedRoles={[2, 3]}>
+                <Layout><ManagerDashboard /></Layout>
+              </RoleGate>
+            </CheckAuth>
+          }
+        />
+        <Route
+          path="/manager-leave"
+          element={
+            <CheckAuth>
+              <RoleGate allowedRoles={[2, 3]}>
+                <Layout><ManagerLeave /></Layout>
+              </RoleGate>
+            </CheckAuth>
+          }
+        />
+        <Route
+          path="/manager-tickets"
+          element={
+            <CheckAuth>
+              <RoleGate allowedRoles={[2, 3]}>
+                <Layout><ManagerTickets /></Layout>
+              </RoleGate>
+            </CheckAuth>
+          }
+        />
+        <Route
+          path="/manager-tickets/:id"
+          element={
+            <CheckAuth>
+              <RoleGate allowedRoles={[2, 3]}>
+                <Layout><ManagerTicketDetail /></Layout>
+              </RoleGate>
+            </CheckAuth>
+          }
+        />
+        <Route
+          path="/manager-tasks"
+          element={
+            <CheckAuth>
+              <RoleGate allowedRoles={[2, 3]}>
+                <Layout><ManagerTasks /></Layout>
+              </RoleGate>
+            </CheckAuth>
+          }
+        />
+        <Route
+          path="/manager-notifications"
+          element={
+            <CheckAuth>
+              <Layout><ManagerNotifications /></Layout>
+            </CheckAuth>
+          }
+        />
+
+        {/* ==================== ADMINISTRATEUR ==================== */}
+        <Route
+          path="/admin-users"
           element={
             <CheckAuth>
               <RoleGate allowedRoles={[4]}>
-                <Layout>
-                  <EmployeeDashboard /> {/* À remplacer par AdminUsers */}
-                </Layout>
+                <Layout><AdminUsers /></Layout>
               </RoleGate>
+            </CheckAuth>
+          }
+        />
+        <Route
+          path="/admin-audit"
+          element={
+            <CheckAuth>
+              <RoleGate allowedRoles={[4]}>
+                <Layout><AdminAudit /></Layout>
+              </RoleGate>
+            </CheckAuth>
+          }
+        />
+        <Route
+          path="/admin-notifications"
+          element={
+            <CheckAuth>
+              <Layout><AdminNotifications /></Layout>
             </CheckAuth>
           }
         />
