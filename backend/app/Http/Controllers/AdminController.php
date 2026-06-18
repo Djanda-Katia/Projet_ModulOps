@@ -5,21 +5,17 @@ namespace App\Http\Controllers;
 use Illuminate\Http\Request;
 use App\Models\User;
 use Illuminate\Support\Facades\Hash;
-use Illuminate\Support\Facades\Auth;
 use App\Http\Controllers\Traits\LogsAudit;
 
 class AdminController extends Controller
 {
-    // AJOUT : on importe le trait d'audit
     use LogsAudit;
 
-    // L'Admin liste tous les utilisateurs
     public function index()
     {
         return User::orderBy('created_at', 'desc')->get();
     }
 
-    // L'Admin crée un compte utilisateur
     public function store(Request $request)
     {
         $request->validate([
@@ -40,35 +36,46 @@ class AdminController extends Controller
             'role_id'  => $request->role_id,
         ]);
 
-        // AUDIT : création de compte
         $this->logAudit("Création du compte utilisateur : {$user->nom} {$user->prenom} ({$user->email}) — Rôle ID : {$user->role_id}");
 
         return response()->json(['message' => 'Utilisateur créé avec succès', 'user' => $user], 201);
     }
 
-    // L'Admin modifie le rôle d'un utilisateur
-    public function modifierRole(Request $request, int $id)
+    // ✅ Nouvelle méthode pour modifier le nom, prénom et fonction
+    public function updateInfos(Request $request, int $id)
     {
         $request->validate([
-            'role_id' => 'required|integer|in:1,2,3,4'
+            'nom'      => 'sometimes|string|max:255',
+            'prenom'   => 'sometimes|string|max:255',
+            'fonction' => 'sometimes|string|max:255',
         ]);
 
         $user = User::findOrFail($id);
-        $ancienRole = $user->role_id;
-        $user->update(['role_id' => $request->role_id]);
 
-        // AUDIT : modification de rôle
-        $this->logAudit("Modification du rôle de {$user->nom} {$user->prenom} : Rôle {$ancienRole} → Rôle {$request->role_id}");
+        $user->update($request->only(['nom', 'prenom', 'fonction']));
 
-        return response()->json(['message' => 'Rôle mis à jour avec succès', 'user' => $user]);
+        $this->logAudit("Modification des informations de {$user->nom} {$user->prenom} par l'administrateur.");
+
+        return response()->json(['message' => 'Informations mises à jour avec succès', 'user' => $user]);
     }
 
-    // Exporter le Journal d'Audit Global en CSV
+    public function destroy(int $id)
+    {
+        $user = User::findOrFail($id);
+        $nomComplet = "{$user->nom} {$user->prenom}";
+        $email = $user->email;
+
+        $user->delete();
+
+        $this->logAudit("Suppression du compte utilisateur : {$nomComplet} ({$email})");
+
+        return response()->json(['message' => 'Utilisateur supprimé avec succès.']);
+    }
+
     public function exporterAudit()
     {
         $audits = \App\Models\Audit::orderBy('created_at', 'desc')->get();
 
-        // AUDIT : export du journal
         $this->logAudit("Export du journal d'audit global en CSV");
 
         $filename = "journal_audit_" . date('Y-m-d') . ".csv";

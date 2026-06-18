@@ -60,7 +60,6 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/conges/decider/{id}', [CongeController::class, 'decider'])->middleware('role:2');
 
     // --- MODULE TÂCHES ---
-    // CORRECTION : role:1,2 → employé ET responsable peuvent consulter et mettre à jour les tâches
     Route::middleware('role:1,2')->group(function () {
         Route::get('/mes-taches', [TacheController::class, 'mesTaches']);
         Route::patch('/taches/{id}/statut', [TacheController::class, 'updateStatut']);
@@ -84,6 +83,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::middleware('role:2')->group(function () {
         Route::post('/taches', [TacheController::class, 'store']);
         Route::patch('/taches/{id}/valider', [TacheController::class, 'validerTerminaison']);
+        Route::patch('/taches/{id}/annuler', [TacheController::class, 'annulerTerminaison']); // NOUVEAU
     });
 
     // --- ACCÈS RÉSERVÉS UNIQUEMENT À L'ADMINISTRATEUR (Rôle 4) ---

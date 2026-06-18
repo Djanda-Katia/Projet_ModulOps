@@ -57,6 +57,7 @@ export default function EmployeeTicketDetail() {
 
   return (
     <div className="space-y-6">
+      {/* ← CORRIGÉ : Retour vers la liste des tickets de l'employé */}
       <Link to="/employee-tickets" className="flex items-center gap-2 text-blue-600 hover:underline text-sm font-semibold">
         <span className="material-symbols-outlined text-base">arrow_back</span>
         Retour à mes tickets

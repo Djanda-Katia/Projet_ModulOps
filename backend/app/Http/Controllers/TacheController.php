@@ -114,7 +114,6 @@ class TacheController extends Controller
 
     /**
      * Le responsable valide et clôture la tâche (Terminée → Fermée)
-     * CORRECTION : notification à TOUS les employés assignés à la tâche
      */
     public function validerTerminaison(Request $request, int $id)
     {
@@ -151,6 +150,45 @@ class TacheController extends Controller
         $this->logAudit("Tâche '{$tache->titre}' validée et fermée par {$responsable->nom} {$responsable->prenom}.");
 
         return response()->json(['message' => 'La tâche a été validée et clôturée avec succès.']);
+    }
+
+    /**
+     * NOUVEAU : Le responsable annule la validation et rouvre la tâche (Terminée → En cours)
+     */
+    public function annulerTerminaison(Request $request, int $id)
+    {
+        if (Auth::user()->role_id !== 2) {
+            return response()->json(['message' => 'Action non autorisée.'], 403);
+        }
+
+        $tache = Tache::findOrFail($id);
+
+        if ($tache->statut !== 'Terminée') {
+            return response()->json([
+                'message' => 'Impossible d\'annuler une tâche qui n\'est pas à l\'état Terminée.'
+            ], 422);
+        }
+
+        $tache->update(['statut' => 'En cours']);
+
+        // Notification à l'employé qui avait terminé la tâche
+        $assignations = AffectationTache::where('tache_id', $id)->get();
+        $employesIds = $assignations->pluck('utilisateur_id')->unique();
+
+        foreach ($employesIds as $employeId) {
+            Notification::create([
+                'destinataire_id' => $employeId,
+                'type'            => 'tache_rouverte',
+                'message'         => "La tâche '{$tache->titre}' a été rouverte par le responsable. Veuillez la reprendre.",
+                'lu'              => false
+            ]);
+        }
+
+        // AUDIT
+        $responsable = Auth::user();
+        $this->logAudit("Tâche '{$tache->titre}' annulée et rouverte par {$responsable->nom} {$responsable->prenom}.");
+
+        return response()->json(['message' => 'La tâche a été annulée et rouverte avec succès.']);
     }
 
     /**

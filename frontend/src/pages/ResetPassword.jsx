@@ -48,7 +48,9 @@ export default function ResetPassword() {
   };
 
   return (
-    <div className="min-h-screen bg-slate-100 flex items-center justify-center p-4">
+    // ← SEULE MODIFICATION : Le bg-slate-100 devient un fond bleu foncé
+    <div className="min-h-screen bg-[#0a0f1e] flex items-center justify-center p-4">
+      {/* ← Le reste est exactement comme ton code original : bg-white, text-gray-900, etc. */}
       <div className="w-full max-w-4xl bg-white rounded-2xl shadow-2xl overflow-hidden flex">
         <div className="hidden md:flex md:w-1/2 bg-gradient-to-br from-[#0d1b3e] to-[#1a3a8a] flex-col justify-center p-12 relative">
           <div className="absolute -top-10 -right-14 w-48 h-48 bg-blue-500/20 rounded-full" />

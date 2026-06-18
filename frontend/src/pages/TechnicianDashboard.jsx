@@ -1,25 +1,23 @@
-import { useState } from "react";
+import { Link } from "react-router-dom";
 
 export default function TechnicianDashboard() {
-  // Simulation des stats
   const stats = {
-    total: 14,
-    enCours: 4,
-    resolus: 8,
+    total: 4,
+    enCours: 1,
+    resolus: 1,
     fermes: 2,
   };
 
-  // Simulation des tickets récents
-  const tickets = [
-    { id: 1, titre: "Panne de climatisation - Serveur 4A", categorie: "Infrastructure", priorite: "Urgent", statut: "En cours", date: "12 Mai, 09:15" },
-    { id: 2, titre: "Maintenance préventive Groupe Électrogène", categorie: "Maintenance", priorite: "Moyenne", statut: "Planifié", date: "14 Mai, 14:00" },
-    { id: 3, titre: "Fuite hydraulique Poste de contrôle", categorie: "Réparation", priorite: "Élevée", statut: "En attente", date: "12 Mai, 11:30" },
-    { id: 4, titre: "Étalonnage Capteurs Température", categorie: "Qualité", priorite: "Faible", statut: "Traité", date: "11 Mai, 16:45" },
+  const recentTickets = [
+    { id: 1, titre: "Problème Connexion VPN", categorie: "Infrastructure", priorite: "Haute", statut: "En cours", demandeur: "AL", date: "12 Oct 2023" },
+    { id: 2, titre: "Mise à jour Logiciel RH", categorie: "Applications", priorite: "Moyenne", statut: "Résolu", demandeur: "JM", date: "11 Oct 2023" },
+    { id: 3, titre: "Accès Imprimante Bureau 4", categorie: "Matériel", priorite: "Basse", statut: "Fermé", demandeur: "SC", date: "10 Oct 2023" },
+    { id: 4, titre: "Demande Nouveau Poste Fixe", categorie: "Matériel", priorite: "Moyenne", statut: "Fermé", demandeur: "EB", date: "08 Oct 2023" },
   ];
 
   return (
     <div className="space-y-8">
-      {/* Statistiques */}
+      {/* 4 Cartes de statistiques */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200 flex items-start justify-between">
           <div>
@@ -59,13 +57,13 @@ export default function TechnicianDashboard() {
         </div>
       </div>
 
-      {/* Tableau des tickets assignés */}
+      {/* Tableau (SANS "Voir détails") */}
       <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
         <div className="p-4 border-b border-gray-100">
-          <h3 className="text-sm font-bold text-gray-900">Mes tickets assignés</h3>
+          <h3 className="text-sm font-bold text-gray-900">Mes tickets assignés (Aperçu)</h3>
         </div>
         <div className="overflow-x-auto">
-          <table className="w-full text-left">
+          <table className="w-full text-left text-sm">
             <thead className="bg-gray-50 text-gray-500 text-xs uppercase tracking-wider">
               <tr>
                 <th className="px-6 py-3">Titre</th>
@@ -73,18 +71,16 @@ export default function TechnicianDashboard() {
                 <th className="px-6 py-3">Priorité</th>
                 <th className="px-6 py-3">Statut</th>
                 <th className="px-6 py-3">Date</th>
-                <th className="px-6 py-3 text-right">Action</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-gray-100 text-sm">
-              {tickets.map((ticket) => (
+            <tbody className="divide-y divide-gray-100">
+              {recentTickets.map((ticket) => (
                 <tr key={ticket.id} className="hover:bg-gray-50">
                   <td className="px-6 py-3 font-semibold">{ticket.titre}</td>
                   <td className="px-6 py-3 text-gray-500">{ticket.categorie}</td>
                   <td className="px-6 py-3">
                     <span className={`px-2 py-1 rounded-full text-xs font-bold ${
-                      ticket.priorite === "Urgent" ? "bg-red-100 text-red-700" :
-                      ticket.priorite === "Élevée" ? "bg-red-100 text-red-700" :
+                      ticket.priorite === "Haute" ? "bg-red-100 text-red-700" :
                       ticket.priorite === "Moyenne" ? "bg-blue-100 text-blue-700" :
                       "bg-gray-100 text-gray-600"
                     }`}>
@@ -93,24 +89,21 @@ export default function TechnicianDashboard() {
                   </td>
                   <td className="px-6 py-3">
                     <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold ${
+                      ticket.statut === "Ouvert" ? "bg-blue-100 text-blue-700" :
                       ticket.statut === "En cours" ? "bg-amber-100 text-amber-700" :
-                      ticket.statut === "Planifié" ? "bg-blue-100 text-blue-700" :
-                      ticket.statut === "En attente" ? "bg-amber-100 text-amber-700" :
-                      "bg-green-100 text-green-700"
+                      ticket.statut === "Résolu" ? "bg-green-100 text-green-700" :
+                      "bg-gray-100 text-gray-600"
                     }`}>
                       <span className={`w-2 h-2 rounded-full ${
+                        ticket.statut === "Ouvert" ? "bg-blue-500" :
                         ticket.statut === "En cours" ? "bg-amber-500" :
-                        ticket.statut === "Planifié" ? "bg-blue-500" :
-                        ticket.statut === "En attente" ? "bg-amber-500" :
-                        "bg-green-500"
+                        ticket.statut === "Résolu" ? "bg-green-500" :
+                        "bg-gray-400"
                       }`}></span>
                       {ticket.statut}
                     </span>
                   </td>
                   <td className="px-6 py-3 text-gray-500">{ticket.date}</td>
-                  <td className="px-6 py-3 text-right">
-                    <a href="#" className="text-blue-600 font-bold hover:underline text-sm">Voir détails</a>
-                  </td>
                 </tr>
               ))}
             </tbody>
