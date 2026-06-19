@@ -32,7 +32,7 @@ import ManagerLeave from "./pages/ManagerLeave";
 import ManagerTickets from "./pages/ManagerTickets";
 import ManagerTicketDetail from "./pages/ManagerTicketDetail";
 import ManagerTasks from "./pages/ManagerTasks";
-import ManagerNotifications from "./pages/ManagerNotifications";
+import ManagerNotifications from "./pages/ManagerNotifications.jsx";
 
 // Administrateur
 import AdminUsers from "./pages/AdminUsers";

@@ -44,11 +44,11 @@ export default function Header({ toggleSidebar }) {
 
         <div className="flex items-center gap-3">
           <div className="hidden sm:block text-right">
-            <p className="text-sm font-bold text-gray-800">{user.name}</p>
-            <p className="text-xs text-gray-500 capitalize">{user.role}</p>
+            <p className="text-sm font-bold text-gray-800">{user.prenom} {user.nom}</p>
+            <p className="text-xs text-gray-500 capitalize">{user.fonction}</p>
           </div>
           <div className="w-10 h-10 rounded-full bg-blue-500 text-white flex items-center justify-center font-bold">
-            {user.name ? user.name.charAt(0).toUpperCase() : "U"}
+           {user.prenom ? user.prenom.charAt(0).toUpperCase() : "U"}{user.nom ? user.nom.charAt(0).toUpperCase() : "U"}
           </div>
         </div>
       </div>

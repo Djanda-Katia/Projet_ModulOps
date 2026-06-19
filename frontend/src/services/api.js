@@ -36,3 +36,253 @@ export const getDashboard = async (token) => {
   });
   return handleResponse(response);
 };
+
+// Fonction pour récupérer la liste des congés
+export const getConges = async (token) => {
+  const response = await fetch(`${API_BASE}/conges`, {
+    method: "GET",
+    headers: {
+      "Content-Type": "application/json",
+      "Authorization": `Bearer ${token}`,
+    },
+  });
+  return handleResponse(response);
+};
+
+// Fonction pour soumettre une demande de congé
+export const soumettreConge = async (token, data) => {
+  const response = await fetch(`${API_BASE}/conges/demande`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "Authorization": `Bearer ${token}`,
+    },
+    body: JSON.stringify(data),
+  });
+  return handleResponse(response);
+};
+
+// Fonction pour récupérer la liste des tickets
+export const getTickets = async (token) => {
+  const response = await fetch(`${API_BASE}/tickets`, {
+    method: "GET",
+    headers: {
+      "Content-Type": "application/json",
+      "Authorization": `Bearer ${token}`,
+    },
+  });
+  return handleResponse(response);
+};
+
+// Fonction pour récupérer la liste des techniciens
+export const getTechniciens = async (token) => {
+  const response = await fetch(`${API_BASE}/techniciens`, {
+    method: "GET",
+    headers: {
+      "Content-Type": "application/json",
+      "Authorization": `Bearer ${token}`,
+    },
+  });
+  return handleResponse(response);
+};
+
+// Fonction pour créer un ticket
+export const createTicket = async (token, data) => {
+  const response = await fetch(`${API_BASE}/tickets`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "Authorization": `Bearer ${token}`,
+    },
+    body: JSON.stringify(data),
+  });
+  return handleResponse(response);
+};
+
+// Récupérer un ticket par ID
+export const getTicketById = async (token, id) => {
+  const response = await fetch(`${API_BASE}/tickets/${id}`, {
+    method: "GET",
+    headers: {
+      "Content-Type": "application/json",
+      "Authorization": `Bearer ${token}`,
+    },
+  });
+  return handleResponse(response);
+};
+
+// Confirmer la résolution d'un ticket
+export const confirmTicket = async (token, id) => {
+  const response = await fetch(`${API_BASE}/tickets/${id}/confirmer`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "Authorization": `Bearer ${token}`,
+    },
+  });
+  return handleResponse(response);
+};
+
+// Signaler un problème (rouvrir un ticket)
+export const signalTicket = async (token, id) => {
+  const response = await fetch(`${API_BASE}/tickets/${id}/signaler`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "Authorization": `Bearer ${token}`,
+    },
+  });
+  return handleResponse(response);
+};
+
+// Récupérer les commentaires d'un ticket
+export const getTicketComments = async (token, id) => {
+  const response = await fetch(`${API_BASE}/tickets/${id}/commentaires`, {
+    method: "GET",
+    headers: {
+      "Content-Type": "application/json",
+      "Authorization": `Bearer ${token}`,
+    },
+  });
+  return handleResponse(response);
+};
+
+// Ajouter un commentaire à un ticket
+export const addTicketComment = async (token, id, contenu) => {
+  const response = await fetch(`${API_BASE}/tickets/${id}/commentaires`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "Authorization": `Bearer ${token}`,
+    },
+    body: JSON.stringify({ contenu }),
+  });
+  return handleResponse(response);
+};
+
+// --- NOTIFICATIONS ---
+export const getNotifications = async (token) => {
+  const response = await fetch(`${API_BASE}/notifications`, {
+    method: "GET",
+    headers: {
+      "Content-Type": "application/json",
+      "Authorization": `Bearer ${token}`,
+    },
+  });
+  return handleResponse(response);
+};
+
+export const markAllNotificationsAsRead = async (token) => {
+  // Note : on pourrait faire une route dédiée, mais pour l'instant on marque chaque notif une par une
+  // En pratique, tu peux ajouter une route PATCH /notifications/mark-all-read dans le backend
+  // Pour simplifier, on va juste recharger la liste
+  const notifs = await getNotifications(token);
+  for (const n of notifs) {
+    if (!n.lu) {
+      await fetch(`${API_BASE}/notifications/${n.id}/lu`, {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${token}`,
+        },
+      });
+    }
+  }
+  return true;
+};
+
+// --- TÂCHES ---
+export const getMyTasks = async (token) => {
+  const response = await fetch(`${API_BASE}/mes-taches`, {
+    method: "GET",
+    headers: {
+      "Content-Type": "application/json",
+      "Authorization": `Bearer ${token}`,
+    },
+  });
+  return handleResponse(response);
+};
+
+export const updateTaskStatus = async (token, id, statut) => {
+  const response = await fetch(`${API_BASE}/taches/${id}/statut`, {
+    method: "PATCH",
+    headers: {
+      "Content-Type": "application/json",
+      "Authorization": `Bearer ${token}`,
+    },
+    body: JSON.stringify({ statut }),
+  });
+  return handleResponse(response);
+};
+
+// --- MANAGER DASHBOARD ---
+export const getManagerDashboard = async (token) => {
+  const response = await fetch(`${API_BASE}/dashboard`, {
+    method: "GET",
+    headers: {
+      "Content-Type": "application/json",
+      "Authorization": `Bearer ${token}`,
+    },
+  });
+  return handleResponse(response);
+};
+
+// --- MANAGER LEAVE DECISION ---
+export const decideConge = async (token, id, statut, motif = "") => {
+  const response = await fetch(`${API_BASE}/conges/decider/${id}`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "Authorization": `Bearer ${token}`,
+    },
+    body: JSON.stringify({ statut, motif }),
+  });
+  return handleResponse(response);
+};
+
+export const validateTask = async (token, id) => {
+  const response = await fetch(`${API_BASE}/taches/${id}/valider`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json", "Authorization": `Bearer ${token}` },
+  });
+  return handleResponse(response);
+};
+
+export const cancelTask = async (token, id) => {
+  const response = await fetch(`${API_BASE}/taches/${id}/annuler`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json", "Authorization": `Bearer ${token}` },
+  });
+  return handleResponse(response);
+};
+
+export const createTask = async (token, data) => {
+  const response = await fetch(`${API_BASE}/taches`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", "Authorization": `Bearer ${token}` },
+    body: JSON.stringify(data),
+  });
+  return handleResponse(response);
+};
+
+export const getEmployes = async (token) => {
+  const response = await fetch(`${API_BASE}/employes`, {
+    method: "GET",
+    headers: {
+      "Content-Type": "application/json",
+      "Authorization": `Bearer ${token}`,
+    },
+  });
+  return handleResponse(response);
+};
+
+export const getAllTasks = async (token) => {
+  const response = await fetch(`${API_BASE}/toutes-taches`, {
+    method: "GET",
+    headers: {
+      "Content-Type": "application/json",
+      "Authorization": `Bearer ${token}`,
+    },
+  });
+  return handleResponse(response);
+};

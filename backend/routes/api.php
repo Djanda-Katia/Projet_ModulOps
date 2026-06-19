@@ -39,6 +39,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/tickets/{id}/commentaires', [TicketController::class, 'ajouterCommentaire']);
     Route::post('/tickets/{id}/confirmer', [TicketController::class, 'confirmerResolution']);
     Route::post('/tickets/{id}/signaler', [TicketController::class, 'signalerProbleme']);
+    Route::get('/tickets/{id}', [TicketController::class, 'show']);
 
     // Route pour récupérer la liste des techniciens disponibles (attribution manuelle)
     Route::get('/techniciens', function () {
@@ -63,6 +64,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::middleware('role:1,2')->group(function () {
         Route::get('/mes-taches', [TacheController::class, 'mesTaches']);
         Route::patch('/taches/{id}/statut', [TacheController::class, 'updateStatut']);
+        Route::get('/toutes-taches', [TacheController::class, 'allTasks'])->middleware('role:2');
     });
 
     // --- MODULE NOTIFICATIONS ---
@@ -93,5 +95,9 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::patch('/admin/users/{id}/role', [AdminController::class, 'modifierRole']);
         Route::get('/admin/audit/export', [AdminController::class, 'exporterAudit']);
     });
+    Route::get('/employes', function () {
+        return \App\Models\User::where('role_id', 1)->get(['id', 'nom', 'prenom']);
+        })->middleware('auth:sanctum');    
 
+    
 });

@@ -203,4 +203,11 @@ class TacheController extends Controller
             ->orderBy('created_at', 'desc')
             ->get();
     }
+    public function allTasks()
+{
+    // Récupère toutes les tâches avec leurs employés assignés
+    return Tache::with('employes')
+        ->orderBy('created_at', 'desc')
+        ->get();
+}
 }

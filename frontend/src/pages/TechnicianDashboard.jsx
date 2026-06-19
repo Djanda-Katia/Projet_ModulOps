@@ -1,19 +1,47 @@
+import { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
+import { useAuth } from "../context/AuthContext";
+import { getTickets } from "../services/api";
 
 export default function TechnicianDashboard() {
-  const stats = {
-    total: 4,
-    enCours: 1,
-    resolus: 1,
-    fermes: 2,
-  };
+  const { token } = useAuth();
+  const [recentTickets, setRecentTickets] = useState([]);
+  const [loading, setLoading] = useState(true);
 
-  const recentTickets = [
-    { id: 1, titre: "Problème Connexion VPN", categorie: "Infrastructure", priorite: "Haute", statut: "En cours", demandeur: "AL", date: "12 Oct 2023" },
-    { id: 2, titre: "Mise à jour Logiciel RH", categorie: "Applications", priorite: "Moyenne", statut: "Résolu", demandeur: "JM", date: "11 Oct 2023" },
-    { id: 3, titre: "Accès Imprimante Bureau 4", categorie: "Matériel", priorite: "Basse", statut: "Fermé", demandeur: "SC", date: "10 Oct 2023" },
-    { id: 4, titre: "Demande Nouveau Poste Fixe", categorie: "Matériel", priorite: "Moyenne", statut: "Fermé", demandeur: "EB", date: "08 Oct 2023" },
-  ];
+  // Stats (on va les calculer à partir des tickets chargés)
+  const [stats, setStats] = useState({ total: 0, enCours: 0, resolus: 0, fermes: 0 });
+
+  useEffect(() => {
+    const loadDashboard = async () => {
+      if (!token) return;
+      try {
+        setLoading(true);
+        const data = await getTickets(token);
+        const tickets = Array.isArray(data) ? data : [];
+        
+        // Mettre à jour les stats
+        setStats({
+          total: tickets.length,
+          enCours: tickets.filter(t => t.statut === "En cours" || t.statut === "Ouvert").length,
+          resolus: tickets.filter(t => t.statut === "Résolu").length,
+          fermes: tickets.filter(t => t.statut === "Fermé").length,
+        });
+
+        // Garder les 4 derniers tickets pour le tableau
+        setRecentTickets(tickets.slice(0, 4));
+      } catch (error) {
+        console.error("Erreur chargement dashboard:", error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadDashboard();
+  }, [token]);
+
+  if (loading) {
+    return <div className="text-center py-10 text-gray-500">Chargement du tableau de bord...</div>;
+  }
 
   return (
     <div className="space-y-8">
@@ -74,38 +102,42 @@ export default function TechnicianDashboard() {
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100">
-              {recentTickets.map((ticket) => (
-                <tr key={ticket.id} className="hover:bg-gray-50">
-                  <td className="px-6 py-3 font-semibold">{ticket.titre}</td>
-                  <td className="px-6 py-3 text-gray-500">{ticket.categorie}</td>
-                  <td className="px-6 py-3">
-                    <span className={`px-2 py-1 rounded-full text-xs font-bold ${
-                      ticket.priorite === "Haute" ? "bg-red-100 text-red-700" :
-                      ticket.priorite === "Moyenne" ? "bg-blue-100 text-blue-700" :
-                      "bg-gray-100 text-gray-600"
-                    }`}>
-                      {ticket.priorite}
-                    </span>
-                  </td>
-                  <td className="px-6 py-3">
-                    <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold ${
-                      ticket.statut === "Ouvert" ? "bg-blue-100 text-blue-700" :
-                      ticket.statut === "En cours" ? "bg-amber-100 text-amber-700" :
-                      ticket.statut === "Résolu" ? "bg-green-100 text-green-700" :
-                      "bg-gray-100 text-gray-600"
-                    }`}>
-                      <span className={`w-2 h-2 rounded-full ${
-                        ticket.statut === "Ouvert" ? "bg-blue-500" :
-                        ticket.statut === "En cours" ? "bg-amber-500" :
-                        ticket.statut === "Résolu" ? "bg-green-500" :
-                        "bg-gray-400"
-                      }`}></span>
-                      {ticket.statut}
-                    </span>
-                  </td>
-                  <td className="px-6 py-3 text-gray-500">{ticket.date}</td>
-                </tr>
-              ))}
+              {recentTickets.length === 0 ? (
+                <tr><td colSpan="5" className="text-center py-6 text-gray-500">Aucun ticket récent.</td></tr>
+              ) : (
+                recentTickets.map((ticket) => (
+                  <tr key={ticket.id} className="hover:bg-gray-50">
+                    <td className="px-6 py-3 font-semibold">{ticket.titre}</td>
+                    <td className="px-6 py-3 text-gray-500">{ticket.categorie}</td>
+                    <td className="px-6 py-3">
+                      <span className={`px-2 py-1 rounded-full text-xs font-bold ${
+                        ticket.priorite === "Haute" ? "bg-red-100 text-red-700" :
+                        ticket.priorite === "Moyenne" ? "bg-blue-100 text-blue-700" :
+                        "bg-gray-100 text-gray-600"
+                      }`}>
+                        {ticket.priorite}
+                      </span>
+                    </td>
+                    <td className="px-6 py-3">
+                      <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold ${
+                        ticket.statut === "Ouvert" ? "bg-blue-100 text-blue-700" :
+                        ticket.statut === "En cours" ? "bg-amber-100 text-amber-700" :
+                        ticket.statut === "Résolu" ? "bg-green-100 text-green-700" :
+                        "bg-gray-100 text-gray-600"
+                      }`}>
+                        <span className={`w-2 h-2 rounded-full ${
+                          ticket.statut === "Ouvert" ? "bg-blue-500" :
+                          ticket.statut === "En cours" ? "bg-amber-500" :
+                          ticket.statut === "Résolu" ? "bg-green-500" :
+                          "bg-gray-400"
+                        }`}></span>
+                        {ticket.statut}
+                      </span>
+                    </td>
+                    <td className="px-6 py-3 text-gray-500">{ticket.date || ticket.created_at || "N/A"}</td>
+                  </tr>
+                ))
+              )}
             </tbody>
           </table>
         </div>

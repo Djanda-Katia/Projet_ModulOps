@@ -1,31 +1,61 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { useAuth } from "../context/AuthContext";
+import { getConges, decideConge } from "../services/api";
 
 export default function ManagerLeave() {
+  const { token } = useAuth();
   const [activeTab, setActiveTab] = useState("En attente");
+  const [requests, setRequests] = useState([]);
+  const [loading, setLoading] = useState(true);
 
-  // Données initiales (seulement des demandes en attente)
-  const [requests, setRequests] = useState([
-    { id: 1, name: "Marc Antoine", type: "Congé Payé", start: "12/10/2023", end: "15/10/2023", days: 4, reason: "Voyage familial prévu.", status: "En attente" },
-    { id: 2, name: "Sophie Laurent", type: "RTT", start: "20/10/2023", end: "20/10/2023", days: 1, reason: "Rendez-vous administratif.", status: "En attente" },
-    { id: 3, name: "Jean Petit", type: "Maladie", start: "05/10/2023", end: "07/10/2023", days: 3, reason: "Certificat médical fourni.", status: "En attente" },
-  ]);
+  // Charger les demandes de congé
+  useEffect(() => {
+    const fetchRequests = async () => {
+      try {
+        const data = await getConges(token);
+        setRequests(data);
+      } catch (error) {
+        console.error("Erreur chargement congés:", error);
+      } finally {
+        setLoading(false);
+      }
+    };
 
-  const handleDecision = (id, newStatus) => {
-    // On met à jour la ligne existante, on ne la supprime pas
-    setRequests(prevRequests =>
-      prevRequests.map(req =>
-        req.id === id ? { ...req, status: newStatus } : req
-      )
-    );
+    if (token) {
+      fetchRequests();
+    }
+  }, [token]);
+
+  // Décision (Approuver / Rejeter) - Version INSTANTANÉE
+  const handleDecision = async (id, statut) => {
+    let motif = "";
+    if (statut === "Rejetée") {
+      motif = prompt("Motif du rejet :");
+      if (motif === null) return; // Annulation
+    }
+    try {
+      // 1. Envoi de la décision au backend
+      await decideConge(token, id, statut, motif);
+      
+      // 2. Mise à jour locale immédiate (sans recharger)
+      setRequests(prevRequests =>
+        prevRequests.map(req =>
+          req.id === id ? { ...req, statut: statut, motif: motif || req.motif } : req
+        )
+      );
+    } catch (error) {
+      alert("Erreur : " + error.message);
+    }
   };
 
   // Compteurs dynamiques
-  const countPending = requests.filter(r => r.status === "En attente").length;
-  const countApproved = requests.filter(r => r.status === "Approuvée").length;
-  const countRejected = requests.filter(r => r.status === "Rejetée").length;
+  const countPending = requests.filter(r => r.statut === "En attente").length;
+  const countApproved = requests.filter(r => r.statut === "Approuvée").length;
+  const countRejected = requests.filter(r => r.statut === "Rejetée").length;
 
-  // Filtrage selon l'onglet (activeTab utilise maintenant le même singulier que status)
-  const filteredRequests = requests.filter(r => r.status === activeTab);
+  const filteredRequests = requests.filter(r => r.statut === activeTab);
+
+  if (loading) return <div>Chargement...</div>;
 
   return (
     <div className="space-y-6">
@@ -93,43 +123,55 @@ export default function ManagerLeave() {
             </thead>
             <tbody className="divide-y divide-gray-100">
               {filteredRequests.length > 0 ? (
-                filteredRequests.map((req) => (
-                  <tr key={req.id} className="hover:bg-gray-50">
-                    <td className="px-6 py-3 font-semibold">{req.name}</td>
-                    <td className="px-6 py-3 text-gray-500">{req.type}</td>
-                    <td className="px-6 py-3 text-gray-500">{req.start}</td>
-                    <td className="px-6 py-3 text-gray-500">{req.end}</td>
-                    <td className="px-6 py-3 text-center font-bold">{req.days}</td>
-                    <td className="px-6 py-3 text-gray-500 italic">{req.reason}</td>
-                    <td className="px-6 py-3">
-                      <span className={`px-2 py-1 rounded-full text-xs font-bold ${
-                        req.status === "Approuvée" ? "bg-green-100 text-green-700" :
-                        req.status === "Rejetée" ? "bg-red-100 text-red-700" :
-                        "bg-amber-100 text-amber-800"
-                      }`}>
-                        {req.status}
-                      </span>
-                    </td>
-                    <td className="px-6 py-3 text-right space-x-2">
-                      {req.status === "En attente" && (
-                        <>
-                          <button
-                            onClick={() => handleDecision(req.id, "Approuvée")}
-                            className="text-green-600 hover:bg-green-50 p-1 rounded transition-colors"
-                          >
-                            <span className="material-symbols-outlined">check</span>
-                          </button>
-                          <button
-                            onClick={() => handleDecision(req.id, "Rejetée")}
-                            className="text-red-600 hover:bg-red-50 p-1 rounded transition-colors"
-                          >
-                            <span className="material-symbols-outlined">close</span>
-                          </button>
-                        </>
-                      )}
-                    </td>
-                  </tr>
-                ))
+                filteredRequests.map((req) => {
+                  const debut = new Date(req.date_debut);
+                  const fin = new Date(req.date_fin);
+                  const jours = Math.ceil((fin - debut) / (1000 * 60 * 60 * 24)) + 1;
+
+                  return (
+                    <tr key={req.id} className="hover:bg-gray-50">
+                      <td className="px-6 py-3 font-semibold">
+                        {req.user.prenom} {req.user.nom}
+                      </td>
+                      <td className="px-6 py-3 text-gray-500">{req.type_conge}</td>
+                      <td className="px-6 py-3 text-gray-500">
+                        {new Date(req.date_debut).toLocaleDateString()}
+                      </td>
+                      <td className="px-6 py-3 text-gray-500">
+                        {new Date(req.date_fin).toLocaleDateString()}
+                      </td>
+                      <td className="px-6 py-3 text-center font-bold">{jours}</td>
+                      <td className="px-6 py-3 text-gray-500 italic">{req.motif || "-"}</td>
+                      <td className="px-6 py-3">
+                        <span className={`px-2 py-1 rounded-full text-xs font-bold ${
+                          req.statut === "Approuvée" ? "bg-green-100 text-green-700" :
+                          req.statut === "Rejetée" ? "bg-red-100 text-red-700" :
+                          "bg-amber-100 text-amber-800"
+                        }`}>
+                          {req.statut}
+                        </span>
+                      </td>
+                      <td className="px-6 py-3 text-right space-x-2">
+                        {req.statut === "En attente" && (
+                          <>
+                            <button
+                              onClick={() => handleDecision(req.id, "Approuvée")}
+                              className="text-green-600 hover:bg-green-50 p-1 rounded transition-colors"
+                            >
+                              <span className="material-symbols-outlined">check</span>
+                            </button>
+                            <button
+                              onClick={() => handleDecision(req.id, "Rejetée")}
+                              className="text-red-600 hover:bg-red-50 p-1 rounded transition-colors"
+                            >
+                              <span className="material-symbols-outlined">close</span>
+                            </button>
+                          </>
+                        )}
+                      </td>
+                    </tr>
+                  );
+                })
               ) : (
                 <tr>
                   <td colSpan="8" className="px-6 py-8 text-center text-gray-400 text-sm">

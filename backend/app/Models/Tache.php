@@ -9,7 +9,6 @@ class Tache extends Model
 {
     use HasFactory;
 
-    // CORRECTION : date_echeance supprimée du fillable (retirée du périmètre)
     protected $fillable = [
         'user_id',
         'assigne_par',
@@ -26,5 +25,11 @@ class Tache extends Model
     public function responsable()
     {
         return $this->belongsTo(User::class, 'assigne_par');
+    }
+
+    // ✅ AJOUTE CETTE RELATION ICI
+    public function employes()
+    {
+        return $this->belongsToMany(User::class, 'affectations_tache', 'tache_id', 'utilisateur_id');
     }
 }

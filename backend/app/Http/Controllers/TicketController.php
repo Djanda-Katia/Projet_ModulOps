@@ -169,7 +169,31 @@ class TicketController extends Controller
 
         return response()->json(['message' => 'Commentaire ajouté et statut mis à jour.']);
     }
+        /**
+     * Récupérer un ticket spécifique avec ses commentaires
+     */
+        public function show(int $id)
+       {
+        $user = Auth::user();
+        $ticket = Ticket::with(['technicien', 'commentaires.auteur'])
+            ->where('id', $id)
+            ->firstOrFail();
 
+        // Vérification que l'utilisateur a le droit de voir ce ticket
+        // Employé ou responsable : doit être le créateur
+        // Technicien : doit être assigné
+        if ($user->role_id === 3) {
+            if ($ticket->technicien_id !== $user->id) {
+                return response()->json(['message' => 'Non autorisé'], 403);
+            }
+        } else {
+            if ($ticket->user_id !== $user->id) {
+                return response()->json(['message' => 'Non autorisé'], 403);
+            }
+        }
+
+        return response()->json($ticket);
+    }
     /**
      * L'employé ou le responsable confirme que le ticket est réglé (Résolu → Fermé)
      */

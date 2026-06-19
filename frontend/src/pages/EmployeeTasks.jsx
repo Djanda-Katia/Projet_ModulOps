@@ -1,15 +1,39 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { useAuth } from "../context/AuthContext";
+import { getMyTasks, updateTaskStatus } from "../services/api";
 
 export default function EmployeeTasks() {
-  const [tasks, setTasks] = useState([
-    { id: 1, title: "Rapport Q3", desc: "Compiler les données financières.", assignedBy: "Paul Tchinda", status: "À faire" },
-    { id: 2, title: "Update Sécurité IT", desc: "Suivre le module de formation.", assignedBy: "Paul Tchinda", status: "À faire" },
-    { id: 3, title: "Audit Paie", desc: "Vérification des écarts.", assignedBy: "Paul Tchinda", status: "En cours" },
-    { id: 4, title: "Entretien Onboarding", desc: "Préparer l'arrivée du stagiaire.", assignedBy: "Paul Tchinda", status: "Terminée" },
-  ]);
+  const { token } = useAuth();
+  const [tasks, setTasks] = useState([]);
+  const [loading, setLoading] = useState(true);
 
-  const updateStatus = (id, newStatus) => {
-    setTasks(tasks.map(t => t.id === id ? { ...t, status: newStatus } : t));
+  // Charger les tâches au démarrage
+  useEffect(() => {
+    const fetchTasks = async () => {
+      try {
+        const data = await getMyTasks(token);
+        setTasks(data);
+      } catch (error) {
+        console.error("Erreur chargement tâches:", error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    if (token) {
+      fetchTasks();
+    }
+  }, [token]);
+
+  // Mettre à jour le statut d'une tâche
+  const updateStatus = async (id, newStatus) => {
+    try {
+      await updateTaskStatus(token, id, newStatus);
+      // Mettre à jour localement
+      setTasks(tasks.map(t => t.id === id ? { ...t, statut: newStatus } : t));
+    } catch (error) {
+      console.error("Erreur mise à jour statut:", error);
+    }
   };
 
   const columns = [
@@ -17,6 +41,8 @@ export default function EmployeeTasks() {
     { status: "En cours", color: "blue", bg: "bg-blue-100" },
     { status: "Terminée", color: "green", bg: "bg-green-100" },
   ];
+
+  if (loading) return <div>Chargement...</div>;
 
   return (
     <div className="space-y-6">
@@ -31,22 +57,24 @@ export default function EmployeeTasks() {
               <span className={`w-3 h-3 rounded-full bg-${col.color}-500`}></span>
               <h3 className="font-bold text-gray-800">{col.status}</h3>
               <span className="ml-auto text-xs bg-white px-2 py-0.5 rounded-full">
-                {tasks.filter(t => t.status === col.status).length}
+                {tasks.filter(t => t.statut === col.status).length}
               </span>
             </div>
 
             <div className="space-y-4">
-              {tasks.filter(t => t.status === col.status).map((task) => (
+              {tasks.filter(t => t.statut === col.status).map((task) => (
                 <div key={task.id} className="bg-white p-4 rounded-lg shadow-sm border border-gray-100">
-                  <h4 className="font-semibold text-gray-900">{task.title}</h4>
-                  <p className="text-sm text-gray-500 mt-1">{task.desc}</p>
+                  <h4 className="font-semibold text-gray-900">{task.titre}</h4>
+                  <p className="text-sm text-gray-500 mt-1">{task.description || "Aucune description"}</p>
                   <div className="flex items-center gap-2 mt-3 text-xs text-gray-400">
-                    <span className="w-5 h-5 rounded-full bg-blue-500 text-white flex items-center justify-center text-[10px]">PT</span>
-                    <span>Assignée par {task.assignedBy}</span>
+                    <span className="w-5 h-5 rounded-full bg-blue-500 text-white flex items-center justify-center text-[10px]">
+                      {task.assigne_par?.prenom?.[0]}{task.assigne_par?.nom?.[0] || "?"}
+                    </span>
+                    <span>Assignée par {task.assigne_par ? `${task.assigne_par.prenom} ${task.assigne_par.nom}` : "Inconnu"}</span>
                   </div>
                   <div className="mt-3">
                     <select
-                      value={task.status}
+                      value={task.statut}
                       onChange={(e) => updateStatus(task.id, e.target.value)}
                       className="w-full bg-gray-50 border border-gray-200 rounded px-3 py-1.5 text-sm outline-none"
                     >

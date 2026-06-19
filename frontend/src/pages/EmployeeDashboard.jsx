@@ -1,16 +1,40 @@
 import { useAuth } from "../context/AuthContext";
+import { useEffect, useState } from "react";
+import { getDashboard } from "../services/api";
 
 export default function EmployeeDashboard() {
-  const { user } = useAuth();
+  const { user, token } = useAuth(); // On récupère le token et l'utilisateur
+  const [data, setData] = useState(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchDashboard = async () => {
+      try {
+        const result = await getDashboard(token);
+        setData(result);
+      } catch (error) {
+        console.error("Erreur dashboard:", error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    if (token) {
+      fetchDashboard();
+    }
+  }, [token]);
+
+  if (loading) return <div>Chargement...</div>;
+  if (!data) return <div>Erreur de chargement</div>;
 
   return (
     <div className="space-y-8">
-      {/* --- STAT CARDS --- */}
+      {/* --- STAT CARDS (Maintenant dynamiques) --- */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200 flex items-start justify-between">
           <div>
             <p className="text-sm text-gray-500 mb-1">Solde de congés</p>
-            <h3 className="text-3xl font-bold text-gray-900">25 jours</h3>
+            <h3 className="text-3xl font-bold text-gray-900">{data.stats.solde_conge} jours</h3>
           </div>
           <div className="p-3 bg-blue-100 rounded-lg text-blue-600">
             <span className="material-symbols-outlined" style={{ fontVariationSettings: "'FILL' 1" }}>calendar_month</span>
@@ -20,7 +44,7 @@ export default function EmployeeDashboard() {
         <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200 flex items-start justify-between">
           <div>
             <p className="text-sm text-gray-500 mb-1">Congés pris</p>
-            <h3 className="text-3xl font-bold text-gray-900">10 jours</h3>
+            <h3 className="text-3xl font-bold text-gray-900">{data.stats.jours_conges_pris} jours</h3>
           </div>
           <div className="p-3 bg-orange-100 rounded-lg text-orange-600">
             <span className="material-symbols-outlined" style={{ fontVariationSettings: "'FILL' 1" }}>event_busy</span>
@@ -30,7 +54,7 @@ export default function EmployeeDashboard() {
         <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200 flex items-start justify-between">
           <div>
             <p className="text-sm text-gray-500 mb-1">Tickets ouverts</p>
-            <h3 className="text-3xl font-bold text-gray-900">3</h3>
+            <h3 className="text-3xl font-bold text-gray-900">{data.stats.tickets_ouverts}</h3>
           </div>
           <div className="p-3 bg-red-100 rounded-lg text-red-600">
             <span className="material-symbols-outlined" style={{ fontVariationSettings: "'FILL' 1" }}>warning</span>
@@ -40,7 +64,7 @@ export default function EmployeeDashboard() {
         <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200 flex items-start justify-between">
           <div>
             <p className="text-sm text-gray-500 mb-1">Tâches en cours</p>
-            <h3 className="text-3xl font-bold text-gray-900">5</h3>
+            <h3 className="text-3xl font-bold text-gray-900">{data.stats.taches_en_cours}</h3>
           </div>
           <div className="p-3 bg-green-100 rounded-lg text-green-600">
             <span className="material-symbols-outlined" style={{ fontVariationSettings: "'FILL' 1" }}>assignment</span>
@@ -48,8 +72,9 @@ export default function EmployeeDashboard() {
         </div>
       </div>
 
-      {/* --- MAIN GRID --- */}
+      {/* --- MAIN GRID (Tableaux dynamiques) --- */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        
         {/* Congés */}
         <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
           <div className="p-4 border-b border-gray-100 flex justify-between items-center">
@@ -65,21 +90,27 @@ export default function EmployeeDashboard() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100 text-sm">
-                <tr>
-                  <td className="px-4 py-3">Annuel</td>
-                  <td className="px-4 py-3 text-gray-500">12/05 - 15/05</td>
-                  <td className="px-4 py-3"><span className="px-2 py-1 rounded-full bg-amber-100 text-amber-800 text-xs font-semibold">En attente</span></td>
-                </tr>
-                <tr>
-                  <td className="px-4 py-3">Maladie</td>
-                  <td className="px-4 py-3 text-gray-500">10/05 - 11/05</td>
-                  <td className="px-4 py-3"><span className="px-2 py-1 rounded-full bg-green-100 text-green-800 text-xs font-semibold">Approuvée</span></td>
-                </tr>
-                <tr>
-                  <td className="px-4 py-3">RTT</td>
-                  <td className="px-4 py-3 text-gray-500">20/05 - 20/05</td>
-                  <td className="px-4 py-3"><span className="px-2 py-1 rounded-full bg-red-100 text-red-800 text-xs font-semibold">Rejetée</span></td>
-                </tr>
+                {data.conges && data.conges.length > 0 ? (
+                  data.conges.map((conge) => (
+                    <tr key={conge.id}>
+                      <td className="px-4 py-3">{conge.type_conge}</td>
+                      <td className="px-4 py-3 text-gray-500">
+                        {new Date(conge.date_debut).toLocaleDateString()} - {new Date(conge.date_fin).toLocaleDateString()}
+                      </td>
+                      <td className="px-4 py-3">
+                        <span className={`px-2 py-1 rounded-full text-xs font-semibold ${
+                          conge.statut === "En attente" ? "bg-amber-100 text-amber-800" :
+                          conge.statut === "Approuvée" ? "bg-green-100 text-green-800" :
+                          "bg-red-100 text-red-800"
+                        }`}>
+                          {conge.statut}
+                        </span>
+                      </td>
+                    </tr>
+                  ))
+                ) : (
+                  <tr><td colSpan="3" className="px-4 py-3 text-center text-gray-500">Aucune demande</td></tr>
+                )}
               </tbody>
             </table>
           </div>
@@ -100,21 +131,34 @@ export default function EmployeeDashboard() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100 text-sm">
-                <tr>
-                  <td className="px-4 py-3 font-semibold">Problème VPN</td>
-                  <td className="px-4 py-3"><span className="px-2 py-1 rounded-full bg-red-100 text-red-700 text-xs font-bold">Haute</span></td>
-                  <td className="px-4 py-3"><span className="px-2 py-1 rounded-full bg-blue-100 text-blue-700 text-xs font-semibold">Ouvert</span></td>
-                </tr>
-                <tr>
-                  <td className="px-4 py-3 font-semibold">Mise à jour logiciel</td>
-                  <td className="px-4 py-3"><span className="px-2 py-1 rounded-full bg-blue-100 text-blue-700 text-xs font-bold">Moyenne</span></td>
-                  <td className="px-4 py-3"><span className="px-2 py-1 rounded-full bg-amber-100 text-amber-700 text-xs font-semibold">En cours</span></td>
-                </tr>
-                <tr>
-                  <td className="px-4 py-3 font-semibold">Imprimante HS</td>
-                  <td className="px-4 py-3"><span className="px-2 py-1 rounded-full bg-gray-100 text-gray-600 text-xs font-bold">Basse</span></td>
-                  <td className="px-4 py-3"><span className="px-2 py-1 rounded-full bg-gray-100 text-gray-600 text-xs font-semibold">Fermé</span></td>
-                </tr>
+                {data.tickets && data.tickets.length > 0 ? (
+                  data.tickets.map((ticket) => (
+                    <tr key={ticket.id}>
+                      <td className="px-4 py-3 font-semibold">{ticket.titre}</td>
+                      <td className="px-4 py-3">
+                        <span className={`px-2 py-1 rounded-full text-xs font-bold ${
+                          ticket.priorite === "Haute" ? "bg-red-100 text-red-700" :
+                          ticket.priorite === "Moyenne" ? "bg-blue-100 text-blue-700" :
+                          "bg-gray-100 text-gray-600"
+                        }`}>
+                          {ticket.priorite}
+                        </span>
+                      </td>
+                      <td className="px-4 py-3">
+                        <span className={`px-2 py-1 rounded-full text-xs font-semibold ${
+                          ticket.statut === "Ouvert" ? "bg-blue-100 text-blue-700" :
+                          ticket.statut === "En cours" ? "bg-amber-100 text-amber-700" :
+                          ticket.statut === "Résolu" ? "bg-purple-100 text-purple-700" :
+                          "bg-gray-100 text-gray-600"
+                        }`}>
+                          {ticket.statut}
+                        </span>
+                      </td>
+                    </tr>
+                  ))
+                ) : (
+                  <tr><td colSpan="3" className="px-4 py-3 text-center text-gray-500">Aucun ticket</td></tr>
+                )}
               </tbody>
             </table>
           </div>
@@ -134,18 +178,25 @@ export default function EmployeeDashboard() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100 text-sm">
-                <tr>
-                  <td className="px-4 py-3 font-semibold">Rapport Q3</td>
-                  <td className="px-4 py-3"><span className="px-2 py-1 rounded-full bg-gray-100 text-gray-600 text-xs font-semibold">À faire</span></td>
-                </tr>
-                <tr>
-                  <td className="px-4 py-3 font-semibold">Update Sécurité</td>
-                  <td className="px-4 py-3"><span className="px-2 py-1 rounded-full bg-blue-100 text-blue-700 text-xs font-semibold">En cours</span></td>
-                </tr>
-                <tr>
-                  <td className="px-4 py-3 font-semibold">Audit Paie</td>
-                  <td className="px-4 py-3"><span className="px-2 py-1 rounded-full bg-green-100 text-green-700 text-xs font-semibold">Terminée</span></td>
-                </tr>
+                {data.taches && data.taches.length > 0 ? (
+                  data.taches.map((tache) => (
+                    <tr key={tache.id}>
+                      <td className="px-4 py-3 font-semibold">{tache.titre}</td>
+                      <td className="px-4 py-3">
+                        <span className={`px-2 py-1 rounded-full text-xs font-semibold ${
+                          tache.statut === "À faire" ? "bg-gray-100 text-gray-600" :
+                          tache.statut === "En cours" ? "bg-blue-100 text-blue-700" :
+                          tache.statut === "Terminée" || tache.statut === "Fermée" ? "bg-green-100 text-green-700" :
+                          "bg-gray-100 text-gray-600"
+                        }`}>
+                          {tache.statut}
+                        </span>
+                      </td>
+                    </tr>
+                  ))
+                ) : (
+                  <tr><td colSpan="2" className="px-4 py-3 text-center text-gray-500">Aucune tâche</td></tr>
+                )}
               </tbody>
             </table>
           </div>

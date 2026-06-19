@@ -1,9 +1,75 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useAuth } from "../context/AuthContext";
+import { getConges, soumettreConge, getDashboard } from "../services/api";
 
 export default function EmployeeLeave() {
-  const { user } = useAuth();
+  const { user, token } = useAuth();
   const [showModal, setShowModal] = useState(false);
+  const [conges, setConges] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [solde, setSolde] = useState(0);
+
+  // Formulaire
+  const [form, setForm] = useState({
+    type_conge: "Annuel",
+    date_debut: "",
+    date_fin: "",
+    motif: "",
+  });
+
+  // Charger les données au démarrage (solde + historique)
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        // On fait les deux appels en parallèle
+        const [congesData, dashboardData] = await Promise.all([
+          getConges(token),
+          getDashboard(token)
+        ]);
+        setConges(congesData);
+        setSolde(dashboardData.stats.solde_conge);
+      } catch (error) {
+        console.error("Erreur chargement données:", error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    if (token) {
+      fetchData();
+    }
+  }, [token]);
+
+  // Soumettre une nouvelle demande
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    try {
+      // 1. Envoi de la demande
+      await soumettreConge(token, form);
+      
+      // 2. Recharger les deux données (solde et liste)
+      const [newConges, newDashboard] = await Promise.all([
+        getConges(token),
+        getDashboard(token)
+      ]);
+      setConges(newConges);
+      setSolde(newDashboard.stats.solde_conge);
+      
+      // 3. Fermer la modale et réinitialiser le formulaire
+      setShowModal(false);
+      setForm({
+        type_conge: "Annuel",
+        date_debut: "",
+        date_fin: "",
+        motif: "",
+      });
+    } catch (error) {
+      console.error("Erreur soumission:", error);
+      alert("Erreur : " + error.message);
+    }
+  };
+
+  if (loading) return <div>Chargement...</div>;
 
   return (
     <div className="space-y-6">
@@ -19,7 +85,7 @@ export default function EmployeeLeave() {
         </button>
       </div>
 
-      {/* Bannière solde */}
+      {/* Bannière solde (MAINTENANT DYNAMIQUE) */}
       <div className="bg-blue-50 border border-blue-200 rounded-xl p-4 flex items-center justify-between">
         <div className="flex items-center gap-4">
           <div className="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center text-blue-600">
@@ -27,7 +93,7 @@ export default function EmployeeLeave() {
           </div>
           <div>
             <p className="text-xs font-semibold text-blue-800 uppercase tracking-wider">Solde disponible</p>
-            <p className="text-xl font-bold text-blue-900">25 jours</p>
+            <p className="text-xl font-bold text-blue-900">{solde} jours</p>
           </div>
         </div>
       </div>
@@ -51,54 +117,47 @@ export default function EmployeeLeave() {
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100 text-sm">
-              <tr className="hover:bg-gray-50">
-                <td className="px-6 py-4 font-semibold">Annuel</td>
-                <td className="px-6 py-4 text-gray-500">15/07/2023</td>
-                <td className="px-6 py-4 text-gray-500">30/07/2023</td>
-                <td className="px-6 py-4 text-center font-bold">12</td>
-                <td className="px-6 py-4 text-gray-500 italic">Vacances été</td>
-                <td className="px-6 py-4">
-                  <span className="px-2 py-1 rounded-full bg-green-100 text-green-700 text-xs font-bold">Approuvée</span>
-                </td>
-                <td className="px-6 py-4 text-gray-500">10/06/2023</td>
-              </tr>
-              <tr className="hover:bg-gray-50">
-                <td className="px-6 py-4 font-semibold">Maladie</td>
-                <td className="px-6 py-4 text-gray-500">05/09/2023</td>
-                <td className="px-6 py-4 text-gray-500">07/09/2023</td>
-                <td className="px-6 py-4 text-center font-bold">3</td>
-                <td className="px-6 py-4 text-gray-500 italic">Certificat joint</td>
-                <td className="px-6 py-4">
-                  <span className="px-2 py-1 rounded-full bg-amber-100 text-amber-800 text-xs font-bold">En attente</span>
-                </td>
-                <td className="px-6 py-4 text-gray-500">04/09/2023</td>
-              </tr>
-              <tr className="hover:bg-gray-50">
-                <td className="px-6 py-4 font-semibold">Exceptionnel</td>
-                <td className="px-6 py-4 text-gray-500">20/10/2023</td>
-                <td className="px-6 py-4 text-gray-500">21/10/2023</td>
-                <td className="px-6 py-4 text-center font-bold">1</td>
-                <td className="px-6 py-4 text-gray-500 italic">Déménagement</td>
-                <td className="px-6 py-4">
-                  <span className="px-2 py-1 rounded-full bg-red-100 text-red-800 text-xs font-bold">Rejetée</span>
-                </td>
-                <td className="px-6 py-4 text-gray-500">15/10/2023</td>
-              </tr>
+              {conges.length > 0 ? (
+                conges.map((conge) => {
+                  const debut = new Date(conge.date_debut);
+                  const fin = new Date(conge.date_fin);
+                  const jours = Math.ceil((fin - debut) / (1000 * 60 * 60 * 24)) + 1;
+
+                  return (
+                    <tr key={conge.id} className="hover:bg-gray-50">
+                      <td className="px-6 py-4 font-semibold">{conge.type_conge}</td>
+                      <td className="px-6 py-4 text-gray-500">
+                        {new Date(conge.date_debut).toLocaleDateString()}
+                      </td>
+                      <td className="px-6 py-4 text-gray-500">
+                        {new Date(conge.date_fin).toLocaleDateString()}
+                      </td>
+                      <td className="px-6 py-4 text-center font-bold">{jours}</td>
+                      <td className="px-6 py-4 text-gray-500 italic">{conge.motif || "-"}</td>
+                      <td className="px-6 py-4">
+                        <span className={`px-2 py-1 rounded-full text-xs font-bold ${
+                          conge.statut === "Approuvée" ? "bg-green-100 text-green-700" :
+                          conge.statut === "Rejetée" ? "bg-red-100 text-red-700" :
+                          "bg-amber-100 text-amber-800"
+                        }`}>
+                          {conge.statut}
+                        </span>
+                      </td>
+                      <td className="px-6 py-4 text-gray-500">
+                        {new Date(conge.created_at).toLocaleDateString()}
+                      </td>
+                    </tr>
+                  );
+                })
+              ) : (
+                <tr>
+                  <td colSpan="7" className="px-6 py-4 text-center text-gray-500">
+                    Aucune demande de congé
+                  </td>
+                </tr>
+              )}
             </tbody>
           </table>
-        </div>
-        <div className="px-6 py-4 bg-gray-50 border-t border-gray-100 flex items-center justify-between">
-          <span className="text-xs text-gray-500">Affichage de 1 à 3 sur 12 entrées</span>
-          <div className="flex items-center gap-2">
-            <button className="p-1 rounded hover:bg-gray-200 text-gray-500 disabled:opacity-30" disabled>
-              <span className="material-symbols-outlined">chevron_left</span>
-            </button>
-            <button className="w-8 h-8 rounded bg-blue-600 text-white text-sm font-bold">1</button>
-            <button className="w-8 h-8 flex items-center justify-center hover:bg-gray-100 text-gray-600 rounded text-sm font-bold">2</button>
-            <button className="p-1 rounded hover:bg-gray-200 text-gray-500">
-              <span className="material-symbols-outlined">chevron_right</span>
-            </button>
-          </div>
         </div>
       </div>
 
@@ -112,34 +171,53 @@ export default function EmployeeLeave() {
                 <span className="material-symbols-outlined">close</span>
               </button>
             </div>
-            <form className="p-6 space-y-4">
+            <form className="p-6 space-y-4" onSubmit={handleSubmit}>
               <div>
                 <label className="block text-sm font-semibold text-gray-600 mb-2">Type de congé</label>
-                <select className="w-full bg-gray-50 border border-gray-200 rounded-lg p-3 focus:ring-2 focus:ring-blue-500 outline-none">
-                  <option>Annuel</option>
-                  <option>Maladie</option>
-                  <option>Exceptionnel</option>
+                <select
+                  value={form.type_conge}
+                  onChange={(e) => setForm({ ...form, type_conge: e.target.value })}
+                  className="w-full bg-gray-50 border border-gray-200 rounded-lg p-3 focus:ring-2 focus:ring-blue-500 outline-none"
+                >
+                  <option value="Annuel">Annuel</option>
+                  <option value="Maladie">Maladie</option>
+                  <option value="Exceptionnel">Exceptionnel</option>
                 </select>
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-semibold text-gray-600 mb-2">Date de début</label>
-                  <input type="date" className="w-full bg-gray-50 border border-gray-200 rounded-lg p-3 focus:ring-2 focus:ring-blue-500 outline-none" />
+                  <input
+                    type="date"
+                    value={form.date_debut}
+                    onChange={(e) => setForm({ ...form, date_debut: e.target.value })}
+                    className="w-full bg-gray-50 border border-gray-200 rounded-lg p-3 focus:ring-2 focus:ring-blue-500 outline-none"
+                  />
                 </div>
                 <div>
                   <label className="block text-sm font-semibold text-gray-600 mb-2">Date de fin</label>
-                  <input type="date" className="w-full bg-gray-50 border border-gray-200 rounded-lg p-3 focus:ring-2 focus:ring-blue-500 outline-none" />
+                  <input
+                    type="date"
+                    value={form.date_fin}
+                    onChange={(e) => setForm({ ...form, date_fin: e.target.value })}
+                    className="w-full bg-gray-50 border border-gray-200 rounded-lg p-3 focus:ring-2 focus:ring-blue-500 outline-none"
+                  />
                 </div>
               </div>
               <div>
                 <label className="block text-sm font-semibold text-gray-600 mb-2">Motif (optionnel)</label>
-                <textarea className="w-full bg-gray-50 border border-gray-200 rounded-lg p-3 focus:ring-2 focus:ring-blue-500 outline-none resize-none" placeholder="Veuillez préciser la raison de votre demande..." rows="3"></textarea>
+                <textarea
+                  value={form.motif}
+                  onChange={(e) => setForm({ ...form, motif: e.target.value })}
+                  className="w-full bg-gray-50 border border-gray-200 rounded-lg p-3 focus:ring-2 focus:ring-blue-500 outline-none resize-none"
+                  placeholder="Veuillez préciser la raison de votre demande..."
+                  rows="3"
+                ></textarea>
               </div>
-              <div className="bg-blue-50 p-4 rounded-lg flex items-center gap-3">
-                <span className="material-symbols-outlined text-blue-600">info</span>
-                <p className="text-sm text-blue-900">Solde disponible après cette demande : <span className="font-bold">20 jours</span></p>
-              </div>
-              <button className="w-full bg-blue-600 text-white py-3 rounded-lg font-bold uppercase tracking-wider hover:bg-blue-700 transition-all shadow-md" type="submit">
+              <button
+                type="submit"
+                className="w-full bg-blue-600 text-white py-3 rounded-lg font-bold uppercase tracking-wider hover:bg-blue-700 transition-all shadow-md"
+              >
                 Envoyer la demande
               </button>
             </form>

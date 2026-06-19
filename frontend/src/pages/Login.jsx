@@ -3,6 +3,7 @@ import { useNavigate, Link } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import loginImg from "../assets/login-img.png";
 import logo from "../assets/logo.svg";
+import { login } from "../services/api";
 import { Visibility, VisibilityOff } from "@mui/icons-material";
 
 const API_BASE = import.meta.env.VITE_API_URL ?? "http://localhost:8000";
@@ -15,29 +16,52 @@ export default function Login() {
   const { login } = useAuth();
   const navigate = useNavigate();
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    if (!form.email.trim() || !form.password.trim()) {
-      setError("Veuillez remplir tous les champs.");
-      return;
+const handleSubmit = async (e) => {
+  e.preventDefault();
+  setError("");
+  setLoading(true);
+
+  try {
+    const response = await fetch("http://127.0.0.1:8000/api/login", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        email: form.email,
+        password: form.password,
+      }),
+    });
+
+    const result = await response.json();
+
+    if (!response.ok) {
+      throw new Error(result.message || "Identifiants incorrects");
     }
-    setLoading(true);
-    try {
-      const res = await fetch(`${API_BASE}/api/login`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(form),
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.message || "Identifiants incorrects");
-      login(data.user, data.access_token);
+
+    // Stockage du token et de l'utilisateur
+    login(result.user, result.access_token);
+
+    //  REDIRECTION DYNAMIQUE SELON LE RÔLE
+    const role_id = result.user.role_id;
+    if (role_id === 1) {
       navigate("/employee-dashboard");
-    } catch (err) {
-      setError(err.message);
-    } finally {
-      setLoading(false);
+    } else if (role_id === 2) {
+      navigate("/manager-dashboard");
+    } else if (role_id === 3) {
+      navigate("/technician-dashboard");
+    } else if (role_id === 4) {
+      navigate("/admin-users");
+    } else {
+      navigate("/employee-dashboard");
     }
-  };
+
+  } catch (err) {
+    setError(err.message);
+  } finally {
+    setLoading(false);
+  }
+};
 
   return (
     <div className="min-h-screen flex items-center justify-center p-4" style={{ background: "linear-gradient(135deg, #0a0f1e 0%, #0d1b3e 50%, #0a0f1e 100%)" }}>

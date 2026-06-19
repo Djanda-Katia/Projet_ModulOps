@@ -1,43 +1,58 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { useAuth } from "../context/AuthContext";
+import { getManagerDashboard } from "../services/api";
 
 export default function ManagerDashboard() {
-  const [pendingLeaves] = useState([
-    { id: 1, name: "Marc Lefebvre", type: "Congé Payé", start: "12 Mai", end: "15 Mai", days: 4 },
-    { id: 2, name: "Sophie Dubois", type: "Maladie", start: "10 Mai", end: "11 Mai", days: 2 },
-    { id: 3, name: "Julien Thomas", type: "RTT", start: "20 Mai", end: "20 Mai", days: 1 },
-  ]);
+  const { token } = useAuth();
+  const [data, setData] = useState(null);
+  const [loading, setLoading] = useState(true);
 
-  const [team] = useState([
-    { initials: "AM", name: "Alexandre Moreau", role: "Développeur Senior", tasks: { todo: 2, ongoing: 3, done: 1 }, daysOff: 12 },
-    { initials: "EG", name: "Élodie Girard", role: "UX Designer", tasks: { todo: 0, ongoing: 1, done: 3 }, daysOff: 8 },
-    { initials: "TB", name: "Thomas Bernard", role: "Analyste Data", tasks: { todo: 3, ongoing: 4, done: 0 }, daysOff: 5 },
-    { initials: "CP", name: "Camille Petit", role: "Marketing Lead", tasks: { todo: 1, ongoing: 2, done: 2 }, daysOff: 15 },
-  ]);
+  useEffect(() => {
+    const fetchDashboard = async () => {
+      try {
+        const result = await getManagerDashboard(token);
+        setData(result);
+      } catch (error) {
+        console.error("Erreur chargement dashboard:", error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    if (token) {
+      fetchDashboard();
+    }
+  }, [token]);
+
+  if (loading) return <div>Chargement...</div>;
+  if (!data) return <div>Erreur de chargement</div>;
+
+  const { nb_conges_en_attente, conges_en_attente, suivi_equipe } = data;
 
   return (
     <div className="space-y-8">
-      <h1 className="text-2xl font-bold text-gray-900">Bonjour, DJANDA Katia !</h1>
+      <h1 className="text-2xl font-bold text-gray-900">Bonjour, Paul Tchinda !</h1>
 
       {/* Stat Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200">
           <p className="text-sm text-gray-500 mb-1">Congés en attente</p>
-          <h3 className="text-3xl font-bold text-gray-900">{pendingLeaves.length}</h3>
+          <h3 className="text-3xl font-bold text-gray-900">{nb_conges_en_attente}</h3>
         </div>
         <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200">
           <p className="text-sm text-gray-500 mb-1">Employés actifs</p>
-          <h3 className="text-3xl font-bold text-gray-900">{team.length}</h3>
+          <h3 className="text-3xl font-bold text-gray-900">{suivi_equipe.length}</h3>
         </div>
         <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200">
           <p className="text-sm text-gray-500 mb-1">Tâches en cours</p>
           <h3 className="text-3xl font-bold text-gray-900">
-            {team.reduce((sum, t) => sum + t.tasks.ongoing, 0)}
+            {suivi_equipe.reduce((sum, emp) => sum + emp.taches_stats.en_cours, 0)}
           </h3>
         </div>
         <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200">
           <p className="text-sm text-gray-500 mb-1">Tâches terminées</p>
           <h3 className="text-3xl font-bold text-gray-900">
-            {team.reduce((sum, t) => sum + t.tasks.done, 0)}
+            {suivi_equipe.reduce((sum, emp) => sum + emp.taches_stats.terminees, 0)}
           </h3>
         </div>
       </div>
@@ -62,18 +77,42 @@ export default function ManagerDashboard() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100">
-                {pendingLeaves.map((req) => (
-                  <tr key={req.id} className="hover:bg-gray-50">
-                    <td className="px-4 py-3 font-semibold">{req.name}</td>
-                    <td className="px-4 py-3 text-gray-500">{req.type}</td>
-                    <td className="px-4 py-3 text-gray-500">{req.start} - {req.end}</td>
-                    <td className="px-4 py-3 font-bold text-center">{req.days}</td>
-                    <td className="px-4 py-3 text-center space-x-2">
-                      <button className="bg-green-600 text-white px-3 py-1 rounded text-xs font-bold uppercase">APPROUVER</button>
-                      <button className="bg-red-600 text-white px-3 py-1 rounded text-xs font-bold uppercase">REJETER</button>
+                {conges_en_attente.length > 0 ? (
+                  conges_en_attente.map((req) => (
+                    <tr key={req.id} className="hover:bg-gray-50">
+                      <td className="px-4 py-3 font-semibold">
+                        {req.user.prenom} {req.user.nom}
+                      </td>
+                      <td className="px-4 py-3 text-gray-500">{req.type_conge}</td>
+                      <td className="px-4 py-3 text-gray-500">
+                        {new Date(req.date_debut).toLocaleDateString()} - {new Date(req.date_fin).toLocaleDateString()}
+                      </td>
+                      <td className="px-4 py-3 font-bold text-center">
+                        {Math.ceil((new Date(req.date_fin) - new Date(req.date_debut)) / (1000 * 60 * 60 * 24)) + 1}
+                      </td>
+                      <td className="px-4 py-3 text-center space-x-2">
+                        <button
+                          className="bg-green-600 text-white px-3 py-1 rounded text-xs font-bold uppercase"
+                          onClick={() => {/* À implémenter avec l'API */}}
+                        >
+                          APPROUVER
+                        </button>
+                        <button
+                          className="bg-red-600 text-white px-3 py-1 rounded text-xs font-bold uppercase"
+                          onClick={() => {/* À implémenter avec l'API */}}
+                        >
+                          REJETER
+                        </button>
+                      </td>
+                    </tr>
+                  ))
+                ) : (
+                  <tr>
+                    <td colSpan="5" className="px-4 py-3 text-center text-gray-500">
+                      Aucune demande en attente
                     </td>
                   </tr>
-                ))}
+                )}
               </tbody>
             </table>
           </div>
@@ -83,20 +122,30 @@ export default function ManagerDashboard() {
         <div className="lg:col-span-5 bg-white rounded-xl shadow-sm border border-gray-200 p-4">
           <h3 className="font-bold text-gray-900 mb-4">Suivi de l'équipe</h3>
           <div className="space-y-4">
-            {team.map((member) => (
-              <div key={member.initials} className="p-3 rounded-lg border border-gray-100">
+            {suivi_equipe.map((member) => (
+              <div key={member.id} className="p-3 rounded-lg border border-gray-100">
                 <div className="flex items-center gap-3 mb-2">
-                  <div className="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center font-bold text-xs">{member.initials}</div>
+                  <div className="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center font-bold text-xs">
+                    {member.prenom[0]}{member.nom[0]}
+                  </div>
                   <div>
-                    <p className="text-sm font-semibold">{member.name}</p>
-                    <p className="text-xs text-gray-500">{member.role}</p>
+                    <p className="text-sm font-semibold">{member.prenom} {member.nom}</p>
+                    <p className="text-xs text-gray-500">{member.fonction}</p>
                   </div>
                 </div>
                 <div className="flex flex-wrap gap-2">
-                  <span className="px-2 py-0.5 bg-gray-100 rounded-full text-xs">{member.tasks.todo} À faire</span>
-                  <span className="px-2 py-0.5 bg-blue-100 rounded-full text-xs">{member.tasks.ongoing} En cours</span>
-                  <span className="px-2 py-0.5 bg-green-100 rounded-full text-xs">{member.tasks.done} Terminée</span>
-                  <span className="px-2 py-0.5 bg-gray-200 rounded-full text-xs">{member.daysOff} j. congés</span>
+                  <span className="px-2 py-0.5 bg-gray-100 rounded-full text-xs">
+                    {member.taches_stats.a_faire} À faire
+                  </span>
+                  <span className="px-2 py-0.5 bg-blue-100 rounded-full text-xs">
+                    {member.taches_stats.en_cours} En cours
+                  </span>
+                  <span className="px-2 py-0.5 bg-green-100 rounded-full text-xs">
+                    {member.taches_stats.terminees} Terminée
+                  </span>
+                  <span className="px-2 py-0.5 bg-gray-200 rounded-full text-xs">
+                    {member.jours_conges_pris} j. congés
+                  </span>
                 </div>
               </div>
             ))}
