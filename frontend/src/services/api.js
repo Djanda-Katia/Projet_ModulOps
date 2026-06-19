@@ -111,7 +111,7 @@ export const getTicketById = async (token, id) => {
   return handleResponse(response);
 };
 
-// Confirmer la résolution d'un ticket
+// Confirmer la résolution d'un ticket (Employé)
 export const confirmTicket = async (token, id) => {
   const response = await fetch(`${API_BASE}/tickets/${id}/confirmer`, {
     method: "POST",
@@ -147,18 +147,25 @@ export const getTicketComments = async (token, id) => {
   return handleResponse(response);
 };
 
-// Ajouter un commentaire à un ticket
-export const addTicketComment = async (token, id, contenu) => {
+// ===============================================================
+// CORRECTION ICI : Ajout du paramètre statut optionnel
+// ===============================================================
+// Ajouter un commentaire à un ticket, avec changement de statut optionnel
+export const addTicketComment = async (token, id, contenu, statut = null) => {
+  // On ne construit le body avec "statut" que si le technicien a changé le statut
+  const body = statut ? { contenu, statut } : { contenu };
+  
   const response = await fetch(`${API_BASE}/tickets/${id}/commentaires`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
       "Authorization": `Bearer ${token}`,
     },
-    body: JSON.stringify({ contenu }),
+    body: JSON.stringify(body),
   });
   return handleResponse(response);
 };
+// ===============================================================
 
 // --- NOTIFICATIONS ---
 export const getNotifications = async (token) => {
@@ -173,9 +180,6 @@ export const getNotifications = async (token) => {
 };
 
 export const markAllNotificationsAsRead = async (token) => {
-  // Note : on pourrait faire une route dédiée, mais pour l'instant on marque chaque notif une par une
-  // En pratique, tu peux ajouter une route PATCH /notifications/mark-all-read dans le backend
-  // Pour simplifier, on va juste recharger la liste
   const notifs = await getNotifications(token);
   for (const n of notifs) {
     if (!n.lu) {

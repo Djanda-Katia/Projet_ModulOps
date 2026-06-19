@@ -23,11 +23,11 @@ class TicketController extends Controller
 
         // Construire la requête de base selon le rôle
         if ($user->role_id === 3) {
-            // Technicien : voir ses tickets assignés
-            $query = Ticket::where('technicien_id', $user->id);
+            // Technicien : voir ses tickets assignés ET charger les infos du demandeur (auteur)
+            $query = Ticket::with('auteur')->where('technicien_id', $user->id);
         } else {
-            // Employé ou Responsable : voir leurs propres tickets
-            $query = Ticket::where('user_id', $user->id);
+            // Employé ou Responsable : voir leurs propres tickets ET charger les infos du technicien assigné
+            $query = Ticket::with('technicien')->where('user_id', $user->id);
         }
 
         // Ajouter le filtre par statut si le paramètre est présent
@@ -115,8 +115,6 @@ class TicketController extends Controller
 
     /**
      * Le technicien ajoute un commentaire et peut changer le statut (En cours / Résolu)
-     * CORRECTION : seul le technicien assigné à ce ticket peut commenter.
-     * Les employés et responsables n'ont pas accès.
      */
     public function ajouterCommentaire(Request $request, int $id)
     {
@@ -169,19 +167,20 @@ class TicketController extends Controller
 
         return response()->json(['message' => 'Commentaire ajouté et statut mis à jour.']);
     }
-        /**
+
+    /**
      * Récupérer un ticket spécifique avec ses commentaires
      */
-        public function show(int $id)
-       {
+    public function show(int $id)
+    {
         $user = Auth::user();
-        $ticket = Ticket::with(['technicien', 'commentaires.auteur'])
+        
+        // CORRECTION ICI : On ajoute 'auteur' et 'technicien' pour avoir les noms !
+        $ticket = Ticket::with(['auteur', 'technicien', 'commentaires.auteur'])
             ->where('id', $id)
             ->firstOrFail();
 
         // Vérification que l'utilisateur a le droit de voir ce ticket
-        // Employé ou responsable : doit être le créateur
-        // Technicien : doit être assigné
         if ($user->role_id === 3) {
             if ($ticket->technicien_id !== $user->id) {
                 return response()->json(['message' => 'Non autorisé'], 403);
@@ -194,6 +193,7 @@ class TicketController extends Controller
 
         return response()->json($ticket);
     }
+
     /**
      * L'employé ou le responsable confirme que le ticket est réglé (Résolu → Fermé)
      */

@@ -1,19 +1,14 @@
 import { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
-import { getTickets, createTicket } from "../services/api";
+import { getTickets } from "../services/api";
 
 export default function TechnicianTickets() {
   const { token } = useAuth();
   const [statusFilter, setStatusFilter] = useState("all");
-  const [showModal, setShowModal] = useState(false);
   const [tickets, setTickets] = useState([]);
   const [loading, setLoading] = useState(true);
 
-  // Formulaire de création
-  const [newTicket, setNewTicket] = useState({ titre: "", categorie: "Matériel", description: "" });
-
-  // Charger les tickets depuis le backend
   const loadTickets = async () => {
     if (!token) return;
     try {
@@ -31,30 +26,59 @@ export default function TechnicianTickets() {
     loadTickets();
   }, [token]);
 
-  // Filtrer les tickets selon le statut
   const filtered = statusFilter === "all" 
     ? tickets 
     : tickets.filter(t => t.statut === statusFilter);
 
-  // Gérer la soumission du formulaire
-  const handleCreateTicket = async (e) => {
-    e.preventDefault();
-    if (!token) return;
+  // ===============================================================
+  // CORRECTION : Afficher le vrai nom de l'auteur ou du technicien
+  // ===============================================================
+  const getPersonName = (ticket) => {
+    // 1. Vérifier si le backend a envoyé l'auteur (Le créateur du ticket : Employé ou Responsable)
+    if (ticket.auteur && typeof ticket.auteur === 'object') {
+      const a = ticket.auteur;
+      // Si on a le prénom et le nom séparés
+      if (a.prenom && a.nom) return `${a.prenom} ${a.nom}`;
+      // Sinon on cherche le premier champ disponible
+      return a.nom || a.prenom || a.name || a.email || "Utilisateur";
+    }
 
+    // 2. Vérifier si le backend a envoyé le technicien assigné (Si c'est le technicien qui regarde ses tickets)
+    if (ticket.technicien && typeof ticket.technicien === 'object') {
+      const t = ticket.technicien;
+      if (t.prenom && t.nom) return `${t.prenom} ${t.nom}`;
+      return t.nom || t.prenom || t.name || t.email || "Technicien";
+    }
+
+    // 3. Fallback ultime (si le backend ne renvoie que l'ID)
+    if (ticket.user_id) return `Utilisateur #${ticket.user_id}`;
+    return "Inconnu";
+  };
+
+  const getPersonInitials = (ticket) => {
+    const name = getPersonName(ticket);
+    if (name === "Inconnu" || name === "Utilisateur" || name === "Technicien") return "?";
+    const parts = name.split(" ");
+    if (parts.length >= 2) return (parts[0][0] + parts[1][0]).toUpperCase();
+    return name.substring(0, 2).toUpperCase();
+  };
+  // ===============================================================
+
+  const formatDate = (dateString) => {
+    if (!dateString) return "N/A";
     try {
-      await createTicket(token, newTicket);
-      setShowModal(false);
-      setNewTicket({ titre: "", categorie: "Matériel", description: "" });
-      loadTickets(); // Recharger la liste après création
-    } catch (error) {
-      console.error("Erreur création ticket:", error);
-      alert("Impossible de créer le ticket.");
+      const cleanDate = dateString.replace('Z', '').replace('T', ' ');
+      const dateObj = new Date(cleanDate);
+      if (isNaN(dateObj.getTime())) return dateString;
+      return dateObj.toLocaleDateString('fr-FR', {
+        day: '2-digit', month: '2-digit', year: 'numeric'
+      });
+    } catch {
+      return dateString;
     }
   };
 
-  if (loading) {
-    return <div className="text-center py-10 text-gray-500">Chargement des tickets...</div>;
-  }
+  if (loading) return <div className="text-center py-10 text-gray-500">Chargement des tickets...</div>;
 
   return (
     <div className="space-y-6">
@@ -63,21 +87,10 @@ export default function TechnicianTickets() {
           <h1 className="text-2xl font-bold text-gray-900">Mes Tickets</h1>
           <p className="text-gray-500 text-sm">Gérez et traitez les tickets qui vous sont assignés.</p>
         </div>
-        <button
-          onClick={() => setShowModal(true)}
-          className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-lg text-sm font-bold flex items-center gap-2 shadow-md transition-all"
-        >
-          <span className="material-symbols-outlined">add</span>
-          + Créer un ticket
-        </button>
       </div>
 
       <div className="flex justify-end">
-        <select
-          value={statusFilter}
-          onChange={(e) => setStatusFilter(e.target.value)}
-          className="bg-white border border-gray-200 rounded-lg px-4 py-2 text-sm outline-none cursor-pointer"
-        >
+        <select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)} className="bg-white border border-gray-200 rounded-lg px-4 py-2 text-sm outline-none cursor-pointer">
           <option value="all">Tous les statuts</option>
           <option value="Ouvert">Ouvert</option>
           <option value="En cours">En cours</option>
@@ -109,38 +122,27 @@ export default function TechnicianTickets() {
                     <td className="px-6 py-3 font-semibold">{ticket.titre}</td>
                     <td className="px-6 py-3 text-gray-500">{ticket.categorie}</td>
                     <td className="px-6 py-3">
-                      <span className={`px-2 py-1 rounded-full text-xs font-bold ${
-                        ticket.priorite === "Haute" ? "bg-red-100 text-red-700" :
-                        ticket.priorite === "Moyenne" ? "bg-blue-100 text-blue-700" :
-                        "bg-gray-100 text-gray-600"
-                      }`}>{ticket.priorite}</span>
+                      <span className={`px-2 py-1 rounded-full text-xs font-bold ${ ticket.priorite === "Haute" ? "bg-red-100 text-red-700" : ticket.priorite === "Moyenne" ? "bg-blue-100 text-blue-700" : "bg-gray-100 text-gray-600" }`}>{ticket.priorite}</span>
                     </td>
                     <td className="px-6 py-3">
-                      <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold ${
-                        ticket.statut === "Ouvert" ? "bg-blue-100 text-blue-700" :
-                        ticket.statut === "En cours" ? "bg-amber-100 text-amber-700" :
-                        ticket.statut === "Résolu" ? "bg-green-100 text-green-700" :
-                        "bg-gray-100 text-gray-600"
-                      }`}>
-                        <span className={`w-2 h-2 rounded-full ${
-                          ticket.statut === "Ouvert" ? "bg-blue-500" :
-                          ticket.statut === "En cours" ? "bg-amber-500" :
-                          ticket.statut === "Résolu" ? "bg-green-500" :
-                          "bg-gray-400"
-                        }`}></span>
+                      <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold ${ ticket.statut === "Ouvert" ? "bg-blue-100 text-blue-700" : ticket.statut === "En cours" ? "bg-amber-100 text-amber-700" : ticket.statut === "Résolu" ? "bg-green-100 text-green-700" : "bg-gray-100 text-gray-600" }`}>
+                        <span className={`w-2 h-2 rounded-full ${ ticket.statut === "Ouvert" ? "bg-blue-500" : ticket.statut === "En cours" ? "bg-amber-500" : ticket.statut === "Résolu" ? "bg-green-500" : "bg-gray-400" }`}></span>
                         {ticket.statut}
                       </span>
                     </td>
                     <td className="px-6 py-3 text-center">
+                      {/* Affichage du rond avec initiales */}
                       <div className="w-7 h-7 rounded-full bg-gray-200 flex items-center justify-center text-xs font-bold mx-auto">
-                        {ticket.demandeur ? ticket.demandeur.substring(0, 2).toUpperCase() : "?"}
+                        {getPersonInitials(ticket)}
+                      </div>
+                      {/* Affichage du nom complet en dessous */}
+                      <div className="text-[10px] text-gray-400 mt-1 font-medium truncate max-w-[90px]">
+                        {getPersonName(ticket)}
                       </div>
                     </td>
-                    <td className="px-6 py-3 text-gray-500">{ticket.date || ticket.created_at || "N/A"}</td>
+                    <td className="px-6 py-3 text-gray-500">{formatDate(ticket.date || ticket.created_at)}</td>
                     <td className="px-6 py-3 text-right">
-                      <Link to={`/technician-tickets/${ticket.id}`} className="text-blue-600 font-bold hover:underline text-sm">
-                        Voir détails
-                      </Link>
+                      <Link to={`/technician-tickets/${ticket.id}`} className="text-blue-600 font-bold hover:underline text-sm">Voir détails</Link>
                     </td>
                   </tr>
                 ))
@@ -149,60 +151,6 @@ export default function TechnicianTickets() {
           </table>
         </div>
       </div>
-
-      {/* Modal Création */}
-      {showModal && (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="bg-white w-full max-w-lg rounded-2xl shadow-2xl overflow-hidden">
-            <div className="px-6 py-4 border-b border-gray-200 flex justify-between items-center">
-              <h3 className="text-xl font-bold text-blue-600">Créer un ticket</h3>
-              <button onClick={() => setShowModal(false)} className="text-gray-400 hover:text-red-500">
-                <span className="material-symbols-outlined">close</span>
-              </button>
-            </div>
-            <form onSubmit={handleCreateTicket} className="p-6 space-y-4">
-              <div>
-                <label className="block text-sm font-semibold text-gray-600 mb-2">Titre</label>
-                <input 
-                  type="text" 
-                  value={newTicket.titre}
-                  onChange={(e) => setNewTicket({...newTicket, titre: e.target.value})}
-                  className="w-full bg-gray-50 border border-gray-200 rounded-lg p-3 focus:ring-2 focus:ring-blue-500 outline-none" 
-                  placeholder="Ex: Problème de connexion" 
-                  required
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-semibold text-gray-600 mb-2">Catégorie</label>
-                <select 
-                  value={newTicket.categorie}
-                  onChange={(e) => setNewTicket({...newTicket, categorie: e.target.value})}
-                  className="w-full bg-gray-50 border border-gray-200 rounded-lg p-3 focus:ring-2 focus:ring-blue-500 outline-none"
-                >
-                  <option>Matériel</option>
-                  <option>Logiciel</option>
-                  <option>Réseau</option>
-                  <option>Autre</option>
-                </select>
-              </div>
-              <div>
-                <label className="block text-sm font-semibold text-gray-600 mb-2">Description</label>
-                <textarea 
-                  value={newTicket.description}
-                  onChange={(e) => setNewTicket({...newTicket, description: e.target.value})}
-                  className="w-full bg-gray-50 border border-gray-200 rounded-lg p-3 focus:ring-2 focus:ring-blue-500 outline-none" 
-                  placeholder="Décrivez votre problème..." 
-                  rows="4"
-                  required
-                ></textarea>
-              </div>
-              <button className="w-full bg-blue-600 text-white py-3 rounded-lg font-bold uppercase" type="submit">
-                Soumettre le ticket
-              </button>
-            </form>
-          </div>
-        </div>
-      )}
     </div>
   );
 }

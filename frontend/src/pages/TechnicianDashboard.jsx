@@ -1,14 +1,14 @@
 import { useState, useEffect } from "react";
-import { Link } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import { getTickets } from "../services/api";
 
 export default function TechnicianDashboard() {
   const { token } = useAuth();
-  const [recentTickets, setRecentTickets] = useState([]);
+  const [allTickets, setAllTickets] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [showAll, setShowAll] = useState(false); // État pour gérer l'affichage
 
-  // Stats (on va les calculer à partir des tickets chargés)
+  // Stats (calculées à partir de tous les tickets chargés)
   const [stats, setStats] = useState({ total: 0, enCours: 0, resolus: 0, fermes: 0 });
 
   useEffect(() => {
@@ -19,16 +19,16 @@ export default function TechnicianDashboard() {
         const data = await getTickets(token);
         const tickets = Array.isArray(data) ? data : [];
         
-        // Mettre à jour les stats
+        // On garde tous les tickets en mémoire
+        setAllTickets(tickets);
+
+        // Mettre à jour les stats avec le total réel
         setStats({
           total: tickets.length,
           enCours: tickets.filter(t => t.statut === "En cours" || t.statut === "Ouvert").length,
           resolus: tickets.filter(t => t.statut === "Résolu").length,
           fermes: tickets.filter(t => t.statut === "Fermé").length,
         });
-
-        // Garder les 4 derniers tickets pour le tableau
-        setRecentTickets(tickets.slice(0, 4));
       } catch (error) {
         console.error("Erreur chargement dashboard:", error);
       } finally {
@@ -39,9 +39,21 @@ export default function TechnicianDashboard() {
     loadDashboard();
   }, [token]);
 
+  // Fonction utilitaire pour extraire le nom du demandeur
+  const getDemandeurName = (ticket) => {
+    if (!ticket.demandeur) return "Inconnu";
+    if (typeof ticket.demandeur === 'object') {
+      return ticket.demandeur.nom || ticket.demandeur.name || ticket.demandeur.email || "Inconnu";
+    }
+    return ticket.demandeur;
+  };
+
   if (loading) {
     return <div className="text-center py-10 text-gray-500">Chargement du tableau de bord...</div>;
   }
+
+  // LOGIQUE D'AFFICHAGE : On affiche les 4 premiers, ou tout si showAll est true
+  const displayedTickets = showAll ? allTickets : allTickets.slice(0, 4);
 
   return (
     <div className="space-y-8">
@@ -85,11 +97,22 @@ export default function TechnicianDashboard() {
         </div>
       </div>
 
-      {/* Tableau (SANS "Voir détails") */}
+      {/* Tableau avec limite d'affichage */}
       <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
-        <div className="p-4 border-b border-gray-100">
-          <h3 className="text-sm font-bold text-gray-900">Mes tickets assignés (Aperçu)</h3>
+        <div className="p-4 border-b border-gray-100 flex justify-between items-center">
+          <h3 className="text-sm font-bold text-gray-900">Mes tickets assignés</h3>
+          
+          {/* Le bouton pour Voir plus / Voir moins */}
+          {allTickets.length > 4 && (
+            <button 
+              onClick={() => setShowAll(!showAll)}
+              className="text-blue-600 hover:text-blue-800 text-sm font-semibold hover:underline transition-colors"
+            >
+              {showAll ? "Voir moins" : `Voir tous (${allTickets.length})`}
+            </button>
+          )}
         </div>
+
         <div className="overflow-x-auto">
           <table className="w-full text-left text-sm">
             <thead className="bg-gray-50 text-gray-500 text-xs uppercase tracking-wider">
@@ -102,10 +125,10 @@ export default function TechnicianDashboard() {
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100">
-              {recentTickets.length === 0 ? (
-                <tr><td colSpan="5" className="text-center py-6 text-gray-500">Aucun ticket récent.</td></tr>
+              {displayedTickets.length === 0 ? (
+                <tr><td colSpan="5" className="text-center py-6 text-gray-500">Aucun ticket assigné pour le moment.</td></tr>
               ) : (
-                recentTickets.map((ticket) => (
+                displayedTickets.map((ticket) => (
                   <tr key={ticket.id} className="hover:bg-gray-50">
                     <td className="px-6 py-3 font-semibold">{ticket.titre}</td>
                     <td className="px-6 py-3 text-gray-500">{ticket.categorie}</td>
@@ -134,7 +157,9 @@ export default function TechnicianDashboard() {
                         {ticket.statut}
                       </span>
                     </td>
-                    <td className="px-6 py-3 text-gray-500">{ticket.date || ticket.created_at || "N/A"}</td>
+                    <td className="px-6 py-3 text-gray-500">
+                      {ticket.date ? new Date(ticket.date).toLocaleDateString('fr-FR') : "N/A"}
+                    </td>
                   </tr>
                 ))
               )}

@@ -1,23 +1,54 @@
 import { useState, useEffect } from "react";
 import { useAuth } from "../context/AuthContext";
+import { getNotifications, markAllNotificationsAsRead as apiMarkAllRead } from "../services/api";
 
 export default function TechnicianNotifications() {
-  const { updateUnreadCount } = useAuth();
+  const { token, updateUnreadCount } = useAuth();
 
-  const [notifications, setNotifications] = useState([
-    { id: 1, type: "ticket", text: "Un nouveau ticket vous a été assigné : \"Erreur connexion VPN\".", time: "À l'instant", read: false },
-    { id: 2, type: "ticket", text: "Le ticket \"Accès Imprimante Bureau 4\" a été résolu et fermé par l'utilisateur.", time: "Il y a 15 min", read: false },
-    { id: 3, type: "ticket", text: "Le ticket \"Maintenance préventive\" vous a été assigné.", time: "Il y a 2 jours", read: true },
-  ]);
+  const [notifications, setNotifications] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  // Charger les notifications depuis l'API
+  const loadNotifications = async () => {
+    if (!token) return;
+    try {
+      setLoading(true);
+      const data = await getNotifications(token);
+      setNotifications(Array.isArray(data) ? data : []);
+    } catch (error) {
+      console.error("Erreur chargement notifs:", error);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   useEffect(() => {
-    const unread = notifications.filter((n) => !n.read).length;
-    updateUnreadCount(unread);
+    loadNotifications();
+  }, [token]);
+
+  // Mettre à jour le compteur de non-lues dans le contexte global
+  useEffect(() => {
+    if (updateUnreadCount) {
+      const unread = notifications.filter((n) => !n.lu).length;
+      updateUnreadCount(unread);
+    }
   }, [notifications, updateUnreadCount]);
 
-  const markAllAsRead = () => {
-    setNotifications(notifications.map(n => ({ ...n, read: true })));
+  // Marquer tout comme lu via l'API
+  const markAllAsRead = async () => {
+    if (!token) return;
+    try {
+      await apiMarkAllRead(token);
+      // Mise à jour locale de l'interface
+      setNotifications(notifications.map(n => ({ ...n, lu: true })));
+    } catch (error) {
+      console.error("Erreur lors du marquage:", error);
+    }
   };
+
+  if (loading) {
+    return <div className="text-center py-10 text-gray-500">Chargement des notifications...</div>;
+  }
 
   return (
     <div className="space-y-6">
@@ -37,23 +68,31 @@ export default function TechnicianNotifications() {
         </div>
 
         <div className="divide-y divide-gray-100">
-          {notifications.map((notif) => (
-            <div
-              key={notif.id}
-              className={`p-4 flex items-start gap-4 ${notif.read ? "bg-white" : "bg-blue-50"}`}
-            >
-              <div className="w-10 h-10 rounded-full bg-blue-100 flex items-center justify-center text-blue-600 shrink-0">
-                <span className="material-symbols-outlined">confirmation_number</span>
-              </div>
-              <div className="flex-1">
-                <p className={`text-sm ${notif.read ? "text-gray-600" : "font-semibold text-gray-900"}`}>
-                  {notif.text}
-                </p>
-                <p className="text-xs text-gray-400 mt-0.5">{notif.time}</p>
-              </div>
-              {!notif.read && <div className="w-2 h-2 rounded-full bg-blue-500 mt-2"></div>}
+          {notifications.length === 0 ? (
+            <div className="p-8 text-center text-gray-500">
+              Aucune notification pour le moment.
             </div>
-          ))}
+          ) : (
+            notifications.map((notif) => (
+              <div
+                key={notif.id}
+                className={`p-4 flex items-start gap-4 ${notif.lu ? "bg-white" : "bg-blue-50"}`}
+              >
+                <div className="w-10 h-10 rounded-full bg-blue-100 flex items-center justify-center text-blue-600 shrink-0">
+                  <span className="material-symbols-outlined">confirmation_number</span>
+                </div>
+                <div className="flex-1">
+                  <p className={`text-sm ${notif.lu ? "text-gray-600" : "font-semibold text-gray-900"}`}>
+                    {notif.text || notif.message || "Notification sans contenu"}
+                  </p>
+                  <p className="text-xs text-gray-400 mt-0.5">
+                    {notif.time || notif.created_at || "À l'instant"}
+                  </p>
+                </div>
+                {!notif.lu && <div className="w-2 h-2 rounded-full bg-blue-500 mt-2"></div>}
+              </div>
+            ))
+          )}
         </div>
       </div>
     </div>
