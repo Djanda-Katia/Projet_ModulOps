@@ -8,7 +8,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 class CommentaireTicket extends Model
 {
     use HasFactory;
-
+    protected $table = 'commentaires_ticket';
     // Synchronisation parfaite avec les colonnes 'ticket_id', 'auteur_id' et 'contenu' de ta migration
     protected $fillable = [
         'ticket_id', 

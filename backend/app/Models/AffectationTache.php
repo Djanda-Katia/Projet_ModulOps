@@ -8,7 +8,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 class AffectationTache extends Model
 {
     use HasFactory;
-
+    protected $table = 'affectations_tache';
     // CORRECTION : 'assigne_par' retiré car absent de la migration affectations_tache
     protected $fillable = [
         'tache_id',
