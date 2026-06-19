@@ -45,12 +45,18 @@ class CongeController extends Controller
         $fin           = new \DateTime($request->date_fin);
         $joursDemandes = $debut->diff($fin)->days + 1;
 
-        // 2. Calculer les jours déjà pris et approuvés (déjà déduits du solde)
+        // 2. Calculer les jours déjà pris et approuvés
         $joursPris = DemandeConge::where('user_id', $user->id)
-            ->where('statut', 'Approuvée')
-            ->get()
-            ->sum(fn($c) => (new \DateTime($c->date_debut))->diff(new \DateTime($c->date_fin))->days + 1);
+        ->where('statut', 'Approuvée')
+        ->get()
+        ->sum(function($c) {
+        return (new \DateTime($c->date_debut))->diff(new \DateTime($c->date_fin))->days + 1;
+    });
 
+// SECURITÉ : Si la collection est vide, $joursPris vaut 0
+if (is_null($joursPris)) {
+    $joursPris = 0;
+}
         // 3. Solde restant réel (basé sur le solde actuel de l'utilisateur)
         // Le solde de l'utilisateur est déjà diminué des congés approuvés précédemment.
         // On recalcule le solde restant en prenant le solde actuel (déjà déduit) moins les jours déjà pris ?

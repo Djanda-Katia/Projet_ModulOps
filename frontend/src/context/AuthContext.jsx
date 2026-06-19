@@ -7,13 +7,13 @@ export const AuthProvider = ({ children }) => {
   // Pour changer d'utilisateur, commente celui que tu ne veux pas et décommente celui que tu veux.
 
   // 🔵 EMPLOYÉ (Thomas Bernard)
-  // const [user, setUser] = useState({
-  //   id: 1,
-  //   name: "Thomas Bernard",
-  //   email: "thomas.bernard@modulops.com",
-  //   role: "Employé",
-  //   role_id: 1,
-  // });
+   const [user, setUser] = useState({
+    id: 1,
+     name: "Thomas Bernard",
+     email: "thomas.bernard@modulops.com",
+     role: "Employé",
+     role_id: 1,
+   });
 
   // 🟢 RESPONSABLE (DJANDA Katia) - ACTIVÉ PAR DÉFAUT
   // const [user, setUser] = useState({
@@ -34,13 +34,13 @@ export const AuthProvider = ({ children }) => {
   // });
 
   // 🔴 ADMINISTRATEUR (Hubert Tchakounté)
-   const [user, setUser] = useState({
-     id: 4,
-     name: "Hubert Tchakounté",
-     email: "hubert.tchakounte@modulops.com",
-     role: "Administrateur",
-     role_id: 4,
-   });
+  // const [user, setUser] = useState({
+  //   id: 4,
+  //   name: "Hubert Tchakounté",
+  //   email: "hubert.tchakounte@modulops.com",
+  //   role: "Administrateur",
+  //   role_id: 4,
+  // });
 
   const [token, setToken] = useState("fake-jwt-token");
   const [loading, setLoading] = useState(false);

@@ -9,7 +9,9 @@ class DemandeConge extends Model
 {
     use HasFactory;
 
-    // Déclaration standard, sécurisée et robuste pour Laravel
+    // C'est ICI la correction : on dit à Laravel que la table s'appelle "demande_conges"
+    protected $table = 'demandes_conge';
+
     protected $fillable = [
         'user_id', 
         'date_debut', 
@@ -19,9 +21,6 @@ class DemandeConge extends Model
         'statut'
     ];
 
-    /**
-     * Une demande de congé appartient à un utilisateur (Employé/Responsable/etc.)
-     */
     public function user()
     {
         return $this->belongsTo(User::class);

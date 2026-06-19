@@ -21,27 +21,30 @@ export default function AdminAudit() {
         </button>
       </div>
 
-      <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
-        <table className="w-full text-left text-sm">
-          <thead className="bg-gray-50 text-gray-500 text-xs uppercase tracking-wider">
-            <tr>
-              <th className="px-6 py-3">ID</th>
-              <th className="px-6 py-3">Action</th>
-              <th className="px-6 py-3">Utilisateur</th>
-              <th className="px-6 py-3">Date</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-gray-100">
-            {logs.map((log) => (
-              <tr key={log.id} className="hover:bg-gray-50">
-                <td className="px-6 py-3">{log.id}</td>
-                <td className="px-6 py-3 font-medium">{log.action}</td>
-                <td className="px-6 py-3 text-gray-500">{log.user}</td>
-                <td className="px-6 py-3 text-gray-500">{log.date}</td>
+      {/* ← ICI : Le conteneur n'a plus overflow-hidden, il permet le swipe */}
+      <div className="bg-white rounded-xl shadow-sm border border-gray-200">
+        <div className="overflow-x-auto">
+          <table className="w-full text-left text-sm min-w-[800px]">
+            <thead className="bg-gray-50 text-gray-500 text-xs uppercase tracking-wider">
+              <tr>
+                <th className="px-6 py-3">ID</th>
+                <th className="px-6 py-3">Action</th>
+                <th className="px-6 py-3">Utilisateur</th>
+                <th className="px-6 py-3">Date</th>
               </tr>
-            ))}
-          </tbody>
-        </table>
+            </thead>
+            <tbody className="divide-y divide-gray-100">
+              {logs.map((log) => (
+                <tr key={log.id} className="hover:bg-gray-50">
+                  <td className="px-6 py-3">{log.id}</td>
+                  <td className="px-6 py-3 font-medium">{log.action}</td>
+                  <td className="px-6 py-3 text-gray-500">{log.user}</td>
+                  <td className="px-6 py-3 text-gray-500">{log.date}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
       </div>
     </div>
   );

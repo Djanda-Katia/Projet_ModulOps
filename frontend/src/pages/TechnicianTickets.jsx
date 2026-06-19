@@ -44,60 +44,63 @@ export default function TechnicianTickets() {
         </select>
       </div>
 
-      <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
-        <table className="w-full text-left text-sm">
-          <thead className="bg-gray-50 text-gray-500 text-xs uppercase tracking-wider">
-            <tr>
-              <th className="px-6 py-3">Titre</th>
-              <th className="px-6 py-3">Catégorie</th>
-              <th className="px-6 py-3">Priorité</th>
-              <th className="px-6 py-3">Statut</th>
-              <th className="px-6 py-3 text-center">Demandeur</th>
-              <th className="px-6 py-3">Date</th>
-              <th className="px-6 py-3 text-right">Action</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-gray-100">
-            {filtered.map((ticket) => (
-              <tr key={ticket.id} className="hover:bg-gray-50">
-                <td className="px-6 py-3 font-semibold">{ticket.titre}</td>
-                <td className="px-6 py-3 text-gray-500">{ticket.categorie}</td>
-                <td className="px-6 py-3">
-                  <span className={`px-2 py-1 rounded-full text-xs font-bold ${
-                    ticket.priorite === "Haute" ? "bg-red-100 text-red-700" :
-                    ticket.priorite === "Moyenne" ? "bg-blue-100 text-blue-700" :
-                    "bg-gray-100 text-gray-600"
-                  }`}>{ticket.priorite}</span>
-                </td>
-                <td className="px-6 py-3">
-                  <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold ${
-                    ticket.statut === "Ouvert" ? "bg-blue-100 text-blue-700" :
-                    ticket.statut === "En cours" ? "bg-amber-100 text-amber-700" :
-                    ticket.statut === "Résolu" ? "bg-green-100 text-green-700" :
-                    "bg-gray-100 text-gray-600"
-                  }`}>
-                    <span className={`w-2 h-2 rounded-full ${
-                      ticket.statut === "Ouvert" ? "bg-blue-500" :
-                      ticket.statut === "En cours" ? "bg-amber-500" :
-                      ticket.statut === "Résolu" ? "bg-green-500" :
-                      "bg-gray-400"
-                    }`}></span>
-                    {ticket.statut}
-                  </span>
-                </td>
-                <td className="px-6 py-3 text-center">
-                  <div className="w-7 h-7 rounded-full bg-gray-200 flex items-center justify-center text-xs font-bold">{ticket.demandeur}</div>
-                </td>
-                <td className="px-6 py-3 text-gray-500">{ticket.date}</td>
-                <td className="px-6 py-3 text-right">
-                  <Link to={`/technician-tickets/${ticket.id}`} className="text-blue-600 font-bold hover:underline text-sm">
-                    Voir détails
-                  </Link>
-                </td>
+      {/* ← ICI : Le conteneur n'a plus overflow-hidden, il permet le swipe */}
+      <div className="bg-white rounded-xl shadow-sm border border-gray-200">
+        <div className="overflow-x-auto">
+          <table className="w-full text-left text-sm min-w-[800px]">
+            <thead className="bg-gray-50 text-gray-500 text-xs uppercase tracking-wider">
+              <tr>
+                <th className="px-6 py-3">Titre</th>
+                <th className="px-6 py-3">Catégorie</th>
+                <th className="px-6 py-3">Priorité</th>
+                <th className="px-6 py-3">Statut</th>
+                <th className="px-6 py-3 text-center">Demandeur</th>
+                <th className="px-6 py-3">Date</th>
+                <th className="px-6 py-3 text-right">Action</th>
               </tr>
-            ))}
-          </tbody>
-        </table>
+            </thead>
+            <tbody className="divide-y divide-gray-100">
+              {filtered.map((ticket) => (
+                <tr key={ticket.id} className="hover:bg-gray-50">
+                  <td className="px-6 py-3 font-semibold">{ticket.titre}</td>
+                  <td className="px-6 py-3 text-gray-500">{ticket.categorie}</td>
+                  <td className="px-6 py-3">
+                    <span className={`px-2 py-1 rounded-full text-xs font-bold ${
+                      ticket.priorite === "Haute" ? "bg-red-100 text-red-700" :
+                      ticket.priorite === "Moyenne" ? "bg-blue-100 text-blue-700" :
+                      "bg-gray-100 text-gray-600"
+                    }`}>{ticket.priorite}</span>
+                  </td>
+                  <td className="px-6 py-3">
+                    <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold ${
+                      ticket.statut === "Ouvert" ? "bg-blue-100 text-blue-700" :
+                      ticket.statut === "En cours" ? "bg-amber-100 text-amber-700" :
+                      ticket.statut === "Résolu" ? "bg-green-100 text-green-700" :
+                      "bg-gray-100 text-gray-600"
+                    }`}>
+                      <span className={`w-2 h-2 rounded-full ${
+                        ticket.statut === "Ouvert" ? "bg-blue-500" :
+                        ticket.statut === "En cours" ? "bg-amber-500" :
+                        ticket.statut === "Résolu" ? "bg-green-500" :
+                        "bg-gray-400"
+                      }`}></span>
+                      {ticket.statut}
+                    </span>
+                  </td>
+                  <td className="px-6 py-3 text-center">
+                    <div className="w-7 h-7 rounded-full bg-gray-200 flex items-center justify-center text-xs font-bold">{ticket.demandeur}</div>
+                  </td>
+                  <td className="px-6 py-3 text-gray-500">{ticket.date}</td>
+                  <td className="px-6 py-3 text-right">
+                    <Link to={`/technician-tickets/${ticket.id}`} className="text-blue-600 font-bold hover:underline text-sm">
+                      Voir détails
+                    </Link>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
       </div>
 
       {showModal && (

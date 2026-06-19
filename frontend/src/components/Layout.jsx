@@ -22,7 +22,7 @@ export default function Layout({ children }) {
       <div className="flex flex-col flex-1 h-full overflow-hidden w-full">
         <Header toggleSidebar={toggleSidebar} />
         
-        {/* ← MODIFICATION ICI : on enlève min-w et on garde overflow-x-auto */}
+        {/* ← Permet le défilement horizontal sur mobile */}
         <main className="flex-1 overflow-x-auto overflow-y-auto p-4 sm:p-8 w-full">
           <div className="max-w-7xl mx-auto">{children}</div>
         </main>

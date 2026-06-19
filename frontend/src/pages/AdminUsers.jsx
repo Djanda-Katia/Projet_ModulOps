@@ -52,60 +52,63 @@ export default function AdminUsers() {
         </button>
       </div>
 
-      <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
-        <table className="w-full text-left text-sm">
-          <thead className="bg-gray-50 text-gray-500 text-xs uppercase tracking-wider">
-            <tr>
-              <th className="px-6 py-3">ID</th>
-              <th className="px-6 py-3">Nom Complet</th>
-              <th className="px-6 py-3">Email</th>
-              <th className="px-6 py-3">Fonction</th>
-              <th className="px-6 py-3">Rôle</th>
-              <th className="px-6 py-3 text-right">Actions</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-gray-100">
-            {users.map((user) => (
-              <tr key={user.id} className="hover:bg-gray-50">
-                <td className="px-6 py-3">{user.id}</td>
-                <td className="px-6 py-3 font-semibold">{user.name}</td>
-                <td className="px-6 py-3 text-gray-500">{user.email}</td>
-                <td className="px-6 py-3 text-gray-500">{user.fonction}</td>
-                <td className="px-6 py-3">
-                  <span className={`px-2 py-1 rounded-full text-xs font-bold ${
-                    user.role === "Employé" ? "bg-blue-100 text-blue-700" :
-                    user.role === "Responsable" ? "bg-green-100 text-green-700" :
-                    user.role === "Technicien" ? "bg-purple-100 text-purple-700" :
-                    "bg-amber-100 text-amber-700"
-                  }`}>{user.role}</span>
-                </td>
-                <td className="px-6 py-3 text-right">
-                  <div className="flex justify-end gap-2">
-                    <button
-                      onClick={() => {
-                        setUserToEdit(user);
-                        setShowEditModal(true);
-                      }}
-                      className="text-blue-600 hover:underline text-xs font-bold"
-                    >
-                      Modifier
-                    </button>
-                    {user.role !== "Administrateur" && (
+      {/* ← ICI : Le conteneur n'a plus overflow-hidden, il permet le swipe */}
+      <div className="bg-white rounded-xl shadow-sm border border-gray-200">
+        <div className="overflow-x-auto">
+          <table className="w-full text-left text-sm min-w-[800px]">
+            <thead className="bg-gray-50 text-gray-500 text-xs uppercase tracking-wider">
+              <tr>
+                <th className="px-6 py-3">ID</th>
+                <th className="px-6 py-3">Nom Complet</th>
+                <th className="px-6 py-3">Email</th>
+                <th className="px-6 py-3">Fonction</th>
+                <th className="px-6 py-3">Rôle</th>
+                <th className="px-6 py-3 text-right">Actions</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-gray-100">
+              {users.map((user) => (
+                <tr key={user.id} className="hover:bg-gray-50">
+                  <td className="px-6 py-3">{user.id}</td>
+                  <td className="px-6 py-3 font-semibold">{user.name}</td>
+                  <td className="px-6 py-3 text-gray-500">{user.email}</td>
+                  <td className="px-6 py-3 text-gray-500">{user.fonction}</td>
+                  <td className="px-6 py-3">
+                    <span className={`px-2 py-1 rounded-full text-xs font-bold ${
+                      user.role === "Employé" ? "bg-blue-100 text-blue-700" :
+                      user.role === "Responsable" ? "bg-green-100 text-green-700" :
+                      user.role === "Technicien" ? "bg-purple-100 text-purple-700" :
+                      "bg-amber-100 text-amber-700"
+                    }`}>{user.role}</span>
+                  </td>
+                  <td className="px-6 py-3 text-right">
+                    <div className="flex justify-end gap-2">
                       <button
                         onClick={() => {
-                          // supprimer
+                          setUserToEdit(user);
+                          setShowEditModal(true);
                         }}
-                        className="text-red-600 hover:text-red-800 hover:underline text-xs font-bold transition-colors"
+                        className="text-blue-600 hover:underline text-xs font-bold"
                       >
-                        Supprimer
+                        Modifier
                       </button>
-                    )}
-                  </div>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+                      {user.role !== "Administrateur" && (
+                        <button
+                          onClick={() => {
+                            // supprimer
+                          }}
+                          className="text-red-600 hover:text-red-800 hover:underline text-xs font-bold transition-colors"
+                        >
+                          Supprimer
+                        </button>
+                      )}
+                    </div>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
       </div>
 
       {/* Modale Créer */}
