@@ -12,19 +12,24 @@ return new class extends Migration
     public function up(): void
     {
         Schema::create('users', function (Blueprint $table) {
-        $table->id();
-    $table->string('nom'); // On remplace 'name' par 'nom'
-    $table->string('prenom'); // Le prénom de l'utilisateur
-    $table->string('email')->unique();
-    $table->timestamp('email_verified_at')->nullable();
-    $table->string('password');
-    $table->string('fonction')->nullable(); // Ex: Comptable, Chauffeur, etc.
-    
-    // Le lien vers la table des rôles (Employé, Responsable, Technicien)
-    $table->foreignId('role_id')->constrained('roles'); 
-    
-    $table->rememberToken();
-    $table->timestamps();
+            $table->id();
+            $table->string('nom'); // On remplace 'name' par 'nom'
+            $table->string('prenom'); // Le prénom de l'utilisateur
+            $table->string('email')->unique();
+            $table->timestamp('email_verified_at')->nullable();
+            $table->string('password');
+            $table->string('fonction')->nullable(); // Ex: Comptable, Chauffeur, etc.
+            
+            // Le lien vers la table des rôles (Employé, Responsable, Technicien)
+            $table->foreignId('role_id')->constrained('roles'); 
+            
+            // --- AJOUT POUR CONGÉS ANNUELS ---
+            $table->integer('solde_conges_annuels')->nullable(); // Le responsable tape le chiffre
+            $table->string('periode_conges_annuels')->nullable(); // Ex: "Du 01/06 au 31/08"
+            // ----------------------------------
+
+            $table->rememberToken();
+            $table->timestamps();
         });
 
         Schema::create('password_reset_tokens', function (Blueprint $table) {

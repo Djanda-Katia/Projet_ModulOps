@@ -15,7 +15,6 @@ class CongeController extends Controller
 
     /**
      * Liste des congés
-     * Responsable (rôle 2) voit tout, l'employé voit ses propres congés
      */
     public function index()
     {
@@ -40,40 +39,28 @@ class CongeController extends Controller
 
         $user = Auth::user();
 
-        // 1. Calculer le nombre de jours demandés (inclusif)
+        // ==== VÉRIFICATION TEMPS RÉEL ====
+        $aujourdhui = new \DateTime('now', new \DateTimeZone('Africa/Douala')); 
+        $dateDebut  = new \DateTime($request->date_debut);
+
+        if ($dateDebut < $aujourdhui) {
+            return response()->json([
+                'message' => "❌ Demande refusée. Le {$request->date_debut} est une date passée. Aujourd'hui nous sommes le " . $aujourdhui->format('d/m/Y') . ". Veuillez choisir une date à partir d'aujourd'hui ou une date future."
+            ], 422);
+        }
+
         $debut         = new \DateTime($request->date_debut);
         $fin           = new \DateTime($request->date_fin);
         $joursDemandes = $debut->diff($fin)->days + 1;
 
-        // 2. Calculer les jours déjà pris et approuvés
-        $joursPris = DemandeConge::where('user_id', $user->id)
-        ->where('statut', 'Approuvée')
-        ->get()
-        ->sum(function($c) {
-        return (new \DateTime($c->date_debut))->diff(new \DateTime($c->date_fin))->days + 1;
-    });
-
-// SECURITÉ : Si la collection est vide, $joursPris vaut 0
-if (is_null($joursPris)) {
-    $joursPris = 0;
-}
-        // 3. Solde restant réel (basé sur le solde actuel de l'utilisateur)
-        // Le solde de l'utilisateur est déjà diminué des congés approuvés précédemment.
-        // On recalcule le solde restant en prenant le solde actuel (déjà déduit) moins les jours déjà pris ?
-        // Non : le solde actuel est le solde initial moins les jours approuvés.
-        // Il suffit donc de comparer joursDemandes avec soldeRestant = solde_conge actuel.
-        // Attention : si le solde_conge n'a jamais été mis à jour, il faut utiliser la logique ci-dessous.
-        // Pour être cohérent, on prend le solde_conge de l'utilisateur qui représente son solde restant réel.
         $soldeRestant = $user->solde_conge ?? 30;
 
-        // 4. Vérification du solde
         if ($joursDemandes > $soldeRestant) {
             return response()->json([
                 'message' => "Solde insuffisant. Vous demandez {$joursDemandes} jours alors qu'il ne vous reste que {$soldeRestant} jours."
             ], 422);
         }
 
-        // 5. Création de la demande
         $conge = DemandeConge::create([
             'user_id'    => $user->id,
             'type_conge' => $request->type_conge,
@@ -83,7 +70,6 @@ if (is_null($joursPris)) {
             'motif'      => $request->motif
         ]);
 
-        // 6. Notification à tous les responsables
         $responsables = User::where('role_id', 2)->get();
         foreach ($responsables as $responsable) {
             Notification::create([
@@ -94,20 +80,18 @@ if (is_null($joursPris)) {
             ]);
         }
 
-        // AUDIT
-        $this->logAudit("Soumission d'une demande de congé par {$user->nom} {$user->prenom} : {$request->type_conge} du {$request->date_debut} au {$request->date_fin} ({$joursDemandes} jours).");
+        $this->logAudit("Soumission d'une demande de congé par {$user->nom} {$user->prenom} : {$request->type_conge} du {$request->date_debut} au {$request->date_fin}.");
 
         return response()->json(['message' => 'Demande envoyée avec succès', 'data' => $conge], 201);
     }
 
     /**
      * Décision du responsable (Approbation ou Rejet)
-     * CORRECTION : mise à jour du solde de congés lors de l'approbation
      */
     public function decider(Request $request, int $id)
     {
         if (Auth::user()->role_id !== 2) {
-            return response()->json(['message' => 'Action non autorisée. Seul le responsable gère les congés.'], 403);
+            return response()->json(['message' => 'Action non autorisée.'], 403);
         }
 
         $request->validate([
@@ -118,34 +102,29 @@ if (is_null($joursPris)) {
         $conge = DemandeConge::with('user')->findOrFail($id);
         $employe = $conge->user;
 
-        // Calcul des jours de la demande
         $debut = new \DateTime($conge->date_debut);
         $fin   = new \DateTime($conge->date_fin);
         $joursDemandes = $debut->diff($fin)->days + 1;
 
-        // Si approbation, déduire les jours du solde de l'employé (sauf si déjà fait)
         if ($request->statut === 'Approuvée') {
-            // Vérifier que la demande n'a pas déjà été approuvée auparavant (éviter double déduction)
             if ($conge->statut !== 'Approuvée') {
                 $nouveauSolde = $employe->solde_conge - $joursDemandes;
                 if ($nouveauSolde < 0) {
-                    return response()->json(['message' => 'Le solde deviendrait négatif, annulation.'], 422);
+                    return response()->json(['message' => 'Le solde deviendrait négatif.'], 422);
                 }
                 $employe->solde_conge = $nouveauSolde;
                 $employe->save();
             }
         }
 
-        // Mise à jour du statut et du motif
         $conge->update([
             'statut' => $request->statut,
             'motif'  => $request->motif
         ]);
 
-        // Notification à l'employé
         $messageNotif = ($request->statut === 'Rejetée')
             ? "Votre demande de congé a été rejetée. Motif : {$request->motif}"
-            : "Votre demande de congé a été approuvée ! ({$joursDemandes} jours déduits de votre solde)";
+            : "Votre demande de congé a été approuvée ! ({$joursDemandes} jours déduits)";
 
         Notification::create([
             'destinataire_id' => $conge->user_id,
@@ -154,13 +133,95 @@ if (is_null($joursPris)) {
             'lu'              => false
         ]);
 
-        // AUDIT
         $responsable = Auth::user();
         $this->logAudit("Décision sur demande de congé de {$employe->nom} {$employe->prenom} : {$request->statut} par {$responsable->nom} {$responsable->prenom}.");
 
         return response()->json([
             'success' => true,
             'message' => "La demande a été " . strtolower($request->statut)
+        ]);
+    }
+
+    // ============================================================
+    // MÉTHODE DE CONFIGURATION DES CONGÉS ANNUELS
+    // ============================================================
+    public function configurerEmploye(Request $request, int $id)
+    {
+        $user = Auth::user();
+        if (!$user || ($user->role_id !== 2 && $user->role_id !== 4)) {
+            return response()->json(['message' => 'Non autorisé'], 403);
+        }
+
+        $request->validate([
+            'periode_conges_annuels' => 'required|array|min:1',
+            'periode_conges_annuels.*.start' => 'required|date',
+            'periode_conges_annuels.*.end'   => 'required|date|after_or_equal:periode_conges_annuels.*.start',
+        ]);
+
+        $employe = User::findOrFail($id);
+
+        // Date du jour côté serveur (Cameroun)
+        $aujourdhui = new \DateTime('now', new \DateTimeZone('Africa/Douala'));
+        $aujourdhui->setTime(0, 0, 0);
+
+        $periodes = $request->periode_conges_annuels;
+
+        if (!empty($periodes) && is_array($periodes)) {
+            // Trie les périodes pour détecter les chevauchements
+            usort($periodes, fn($a, $b) => strcmp($a['start'], $b['start']));
+
+            $previousEnd = null;
+            foreach ($periodes as $periode) {
+                if (empty($periode['start']) || empty($periode['end'])) {
+                    return response()->json(['message' => 'Chaque période doit avoir une date de début et une date de fin.'], 422);
+                }
+
+                $debut = new \DateTime($periode['start']);
+                $fin   = new \DateTime($periode['end']);
+
+                // 1. Pas de date dans le passé
+                if ($debut < $aujourdhui) {
+                    return response()->json([
+                        'message' => "Période du {$debut->format('d/m/Y')} déjà passée (aujourd'hui : {$aujourdhui->format('d/m/Y')})."
+                    ], 422);
+                }
+
+                // 2. Fin >= Début (déjà validé, mais double sécurité)
+                if ($fin < $debut) {
+                    return response()->json(['message' => 'La date de fin doit suivre la date de début.'], 422);
+                }
+
+                // 3. Pas de chevauchement
+                if ($previousEnd !== null && $debut <= $previousEnd) {
+                    return response()->json(['message' => 'Deux périodes ne peuvent pas se chevaucher.'], 422);
+                }
+
+                $previousEnd = $fin;
+            }
+        }
+
+        // Calcul du solde total
+        $soldeCalcule = 0;
+        if (!empty($periodes) && is_array($periodes)) {
+            foreach ($periodes as $periode) {
+                $debut = new \DateTime($periode['start']);
+                $fin   = new \DateTime($periode['end']);
+                $jours = $debut->diff($fin)->days + 1;
+                $soldeCalcule += $jours;
+            }
+        }
+
+        $employe->update([
+            'solde_conge' => $soldeCalcule,
+            'periode_conges_annuels' => $periodes,
+        ]);
+
+        $this->logAudit("Configuration des congés annuels mise à jour pour {$employe->nom} {$employe->prenom} par {$user->nom} {$user->prenom}.");
+
+        return response()->json([
+            'message' => 'Configuration des congés enregistrée avec succès',
+            'solde_conge' => $employe->solde_conge,
+            'periode_conges_annuels' => $employe->periode_conges_annuels,
         ]);
     }
 }

@@ -1,6 +1,25 @@
 import { useState, useEffect } from "react";
 import { useAuth } from "../context/AuthContext";
 import { getConges, decideConge } from "../services/api";
+import { Link } from "react-router-dom";
+
+// ===============================================================
+// FONCTION FORMAT DD/MM/YYYY (strict)
+// ===============================================================
+const formatDate = (dateString) => {
+  if (!dateString) return "-";
+  const date = new Date(dateString);
+  if (isNaN(date.getTime())) return "-";
+
+  // Récupère le jour, le mois et l'année
+  const day = String(date.getDate()).padStart(2, '0');
+  const month = String(date.getMonth() + 1).padStart(2, '0'); // Les mois commencent à 0 en JS
+  const year = date.getFullYear();
+
+  // Retourne le format DD/MM/YYYY
+  return `${day}/${month}/${year}`;
+};
+// ===============================================================
 
 export default function ManagerLeave() {
   const { token } = useAuth();
@@ -8,7 +27,6 @@ export default function ManagerLeave() {
   const [requests, setRequests] = useState([]);
   const [loading, setLoading] = useState(true);
 
-  // Charger les demandes de congé
   useEffect(() => {
     const fetchRequests = async () => {
       try {
@@ -26,18 +44,14 @@ export default function ManagerLeave() {
     }
   }, [token]);
 
-  // Décision (Approuver / Rejeter) - Version INSTANTANÉE
   const handleDecision = async (id, statut) => {
     let motif = "";
     if (statut === "Rejetée") {
       motif = prompt("Motif du rejet :");
-      if (motif === null) return; // Annulation
+      if (motif === null) return;
     }
     try {
-      // 1. Envoi de la décision au backend
       await decideConge(token, id, statut, motif);
-      
-      // 2. Mise à jour locale immédiate (sans recharger)
       setRequests(prevRequests =>
         prevRequests.map(req =>
           req.id === id ? { ...req, statut: statut, motif: motif || req.motif } : req
@@ -48,7 +62,6 @@ export default function ManagerLeave() {
     }
   };
 
-  // Compteurs dynamiques
   const countPending = requests.filter(r => r.statut === "En attente").length;
   const countApproved = requests.filter(r => r.statut === "Approuvée").length;
   const countRejected = requests.filter(r => r.statut === "Rejetée").length;
@@ -64,6 +77,13 @@ export default function ManagerLeave() {
           <h1 className="text-2xl font-bold text-gray-900">Gestion des Congés</h1>
           <p className="text-gray-500 text-sm">Validez ou rejetez les demandes de congé de votre équipe.</p>
         </div>
+        <Link
+          to="/manager-leave-config"
+          className="bg-amber-500 hover:bg-amber-600 text-white px-6 py-3 rounded-lg text-sm font-bold flex items-center gap-2 shadow-md transition-all"
+        >
+          <span className="material-symbols-outlined">settings</span>
+          Gérer les congés annuels
+        </Link>
       </div>
 
       <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 flex items-center gap-3">
@@ -72,7 +92,6 @@ export default function ManagerLeave() {
       </div>
 
       <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
-        {/* Tabs */}
         <div className="flex border-b border-gray-200">
           <button
             onClick={() => setActiveTab("En attente")}
@@ -106,7 +125,6 @@ export default function ManagerLeave() {
           </button>
         </div>
 
-        {/* Tableau */}
         <div className="overflow-x-auto">
           <table className="w-full text-left text-sm">
             <thead className="bg-gray-50 text-gray-500 text-xs uppercase tracking-wider">
@@ -124,9 +142,9 @@ export default function ManagerLeave() {
             <tbody className="divide-y divide-gray-100">
               {filteredRequests.length > 0 ? (
                 filteredRequests.map((req) => {
-                  const debut = new Date(req.date_debut);
-                  const fin = new Date(req.date_fin);
-                  const jours = Math.ceil((fin - debut) / (1000 * 60 * 60 * 24)) + 1;
+                  const jours = Math.ceil(
+                    (new Date(req.date_fin) - new Date(req.date_debut)) / (1000 * 60 * 60 * 24)
+                  ) + 1;
 
                   return (
                     <tr key={req.id} className="hover:bg-gray-50">
@@ -134,12 +152,8 @@ export default function ManagerLeave() {
                         {req.user.prenom} {req.user.nom}
                       </td>
                       <td className="px-6 py-3 text-gray-500">{req.type_conge}</td>
-                      <td className="px-6 py-3 text-gray-500">
-                        {new Date(req.date_debut).toLocaleDateString()}
-                      </td>
-                      <td className="px-6 py-3 text-gray-500">
-                        {new Date(req.date_fin).toLocaleDateString()}
-                      </td>
+                      <td className="px-6 py-3 text-gray-500">{formatDate(req.date_debut)}</td>
+                      <td className="px-6 py-3 text-gray-500">{formatDate(req.date_fin)}</td>
                       <td className="px-6 py-3 text-center font-bold">{jours}</td>
                       <td className="px-6 py-3 text-gray-500 italic">{req.motif || "-"}</td>
                       <td className="px-6 py-3">

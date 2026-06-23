@@ -1,16 +1,38 @@
 // src/services/api.js
 
 // L'URL de base de ton backend (port 8000)
-const API_BASE = "http://127.0.0.1:8000/api";
+const API_BASE = import.meta.env.VITE_API_URL ?? "http://127.0.0.1:8000/api";
 
 // Fonction utilitaire pour gérer les réponses du serveur
 const handleResponse = async (response) => {
-  const data = await response.json();
+  // Si la réponse n'est pas OK (ex: 500, 404)
   if (!response.ok) {
-    // Si le serveur renvoie une erreur (401, 500, etc.), on la lance
-    throw new Error(data.message || "Une erreur est survenue");
+    let errorMessage = "Une erreur est survenue.";
+
+    try {
+      const data = await response.json();
+      // On utilise le message d'erreur renvoyé par le Backend (ex: "L'adresse email est déjà utilisée")
+      if (data.message) {
+        errorMessage = data.message;
+      } else if (data.errors) {
+        // Si Laravel renvoie un objet "errors" (c'est le cas pour les validations)
+        // On prend le premier message d'erreur trouvé
+        const firstErrorKey = Object.keys(data.errors)[0];
+        if (firstErrorKey) {
+          errorMessage = data.errors[firstErrorKey][0];
+        }
+      }
+    } catch {
+      // Si on ne peut pas lire le JSON, on garde un message générique
+      errorMessage = "Erreur de communication avec le serveur.";
+    }
+
+    // On lance une erreur avec le message clair
+    throw new Error(errorMessage);
   }
-  return data;
+
+  // Si la réponse est OK, on retourne le JSON
+  return response.json();
 };
 
 // Fonction pour se connecter (LOGIN)
@@ -147,14 +169,9 @@ export const getTicketComments = async (token, id) => {
   return handleResponse(response);
 };
 
-// ===============================================================
-// CORRECTION ICI : Ajout du paramètre statut optionnel
-// ===============================================================
 // Ajouter un commentaire à un ticket, avec changement de statut optionnel
 export const addTicketComment = async (token, id, contenu, statut = null) => {
-  // On ne construit le body avec "statut" que si le technicien a changé le statut
   const body = statut ? { contenu, statut } : { contenu };
-  
   const response = await fetch(`${API_BASE}/tickets/${id}/commentaires`, {
     method: "POST",
     headers: {
@@ -165,7 +182,6 @@ export const addTicketComment = async (token, id, contenu, statut = null) => {
   });
   return handleResponse(response);
 };
-// ===============================================================
 
 // --- NOTIFICATIONS ---
 export const getNotifications = async (token) => {

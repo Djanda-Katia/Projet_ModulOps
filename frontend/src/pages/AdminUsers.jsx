@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { useAuth } from "../context/AuthContext";
+import toast from 'react-hot-toast';
 
 const API_BASE = import.meta.env.VITE_API_URL ?? "http://localhost:8000";
 
@@ -12,16 +13,18 @@ export default function AdminUsers() {
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
   
+  // NOUVEL ÉTAT : Modale de confirmation de suppression
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [userToDelete, setUserToDelete] = useState(null);
+
   // États des formulaires
   const [newUser, setNewUser] = useState({ nom: "", prenom: "", email: "", password: "", fonction: "", role_id: "1" });
   const [userToEdit, setUserToEdit] = useState(null);
 
   // ---------------------------------------------------------
-  // CORRECTION ICI : Dictionnaire pour traduire les ID en noms de rôles
+  // Dictionnaire pour traduire les ID en noms de rôles
   // ---------------------------------------------------------
   const getRoleDetails = (roleId) => {
-    // Si ton backend renvoie directement le nom (ex: "Employé"), tu peux ignorer ça.
-    // Si ton backend renvoie un ID (ex: 1, 2, 3), ce dictionnaire fait la traduction.
     const roleMap = {
       1: { label: "Employé", colorClass: "bg-blue-100 text-blue-700" },
       2: { label: "Responsable", colorClass: "bg-green-100 text-green-700" },
@@ -29,14 +32,12 @@ export default function AdminUsers() {
       4: { label: "Administrateur", colorClass: "bg-amber-100 text-amber-700" },
     };
 
-    // Si le rôle est déjà un texte (ex: "Employé"), on le retourne directement
     if (typeof roleId === 'string' && isNaN(roleId)) {
       const foundKey = Object.keys(roleMap).find(key => roleMap[key].label === roleId);
       if (foundKey) return roleMap[foundKey];
       return { label: roleId, colorClass: "bg-gray-100 text-gray-700" };
     }
 
-    // Si c'est un ID (nombre ou string numérique)
     return roleMap[roleId] || { label: "Inconnu", colorClass: "bg-gray-100 text-gray-500" };
   };
   // ---------------------------------------------------------
@@ -83,19 +84,20 @@ export default function AdminUsers() {
       });
 
       if (res.ok) {
+        toast.success("✅ Utilisateur créé avec succès !");
         setShowCreateModal(false);
         setNewUser({ nom: "", prenom: "", email: "", password: "", fonction: "", role_id: "1" });
-        loadUsers(); // Recharger la liste
+        loadUsers();
       } else {
         const error = await res.json();
-        alert(`Erreur : ${error.message || "Impossible de créer l'utilisateur"}`);
+        toast.error("❌ " + (error.message || "Impossible de créer l'utilisateur"));
       }
     } catch (error) {
-      alert("Impossible de contacter le serveur.");
+      toast.error("❌ Impossible de contacter le serveur.");
     }
   };
 
-  // 3. Modifier un utilisateur
+  // 3. Modifier les infos générales d'un utilisateur
   const handleEditSubmit = async (e) => {
     e.preventDefault();
     if (!token || !userToEdit) return;
@@ -111,37 +113,43 @@ export default function AdminUsers() {
       });
 
       if (res.ok) {
+        toast.success("✅ Informations mises à jour avec succès !");
         setShowEditModal(false);
         setUserToEdit(null);
-        loadUsers(); // Recharger la liste
+        loadUsers();
       } else {
         const error = await res.json();
-        alert(`Erreur : ${error.message || "Impossible de modifier l'utilisateur"}`);
+        toast.error("❌ " + (error.message || "Impossible de modifier l'utilisateur"));
       }
     } catch (error) {
-      alert("Impossible de contacter le serveur.");
+      toast.error("❌ Impossible de contacter le serveur.");
     }
   };
 
   // 4. Supprimer un utilisateur
-  const handleDelete = async (userId) => {
-    if (!token) return;
-    if (!window.confirm("Êtes-vous sûr de vouloir supprimer cet utilisateur ? Cette action est irréversible.")) return;
+  const handleDelete = async () => {
+    if (!token || !userToDelete) return;
 
     try {
-      const res = await fetch(`${API_BASE}/api/admin/users/${userId}`, {
+      const res = await fetch(`${API_BASE}/api/admin/users/${userToDelete.id}`, {
         method: "DELETE",
         headers: { "Authorization": `Bearer ${token}` },
       });
 
       if (res.ok) {
-        loadUsers(); // Recharger la liste
+        toast.success("✅ Utilisateur supprimé avec succès.");
+        loadUsers();
       } else {
         const error = await res.json();
-        alert(`Erreur : ${error.message || "Impossible de supprimer l'utilisateur"}`);
+        toast.error("❌ " + (error.message || "Impossible de supprimer l'utilisateur"));
       }
+      
+      setShowDeleteModal(false);
+      setUserToDelete(null);
     } catch (error) {
-      alert("Impossible de contacter le serveur.");
+      toast.error("❌ Impossible de contacter le serveur.");
+      setShowDeleteModal(false);
+      setUserToDelete(null);
     }
   };
 
@@ -190,7 +198,6 @@ export default function AdminUsers() {
                 <tr><td colSpan="6" className="text-center py-6 text-gray-500">Aucun utilisateur trouvé.</td></tr>
               ) : (
                 users.map((user) => {
-                  // ICI on récupère le détail du rôle
                   const roleData = getRoleDetails(user.role_id || user.role);
                   
                   return (
@@ -200,7 +207,6 @@ export default function AdminUsers() {
                       <td className="px-6 py-3 text-gray-500">{user.email}</td>
                       <td className="px-6 py-3 text-gray-500">{user.fonction || "-"}</td>
                       <td className="px-6 py-3">
-                        {/* On utilise les données du mapping */}
                         <span className={`px-2 py-1 rounded-full text-xs font-bold ${roleData.colorClass}`}>
                           {roleData.label}
                         </span>
@@ -218,7 +224,10 @@ export default function AdminUsers() {
                           </button>
                           {user.role !== "Administrateur" && user.role_id !== "4" && user.role_id !== 4 && (
                             <button
-                              onClick={() => handleDelete(user.id)}
+                              onClick={() => {
+                                setUserToDelete(user);
+                                setShowDeleteModal(true);
+                              }}
                               className="text-red-600 hover:text-red-800 hover:underline text-xs font-bold transition-colors"
                             >
                               Supprimer
@@ -307,7 +316,6 @@ export default function AdminUsers() {
                   <option value="1">Employé</option>
                   <option value="2">Responsable</option>
                   <option value="3">Technicien</option>
-                  <option value="4">Administrateur</option>
                 </select>
               </div>
               <button className="w-full bg-blue-600 text-white py-3 rounded-lg font-bold uppercase hover:bg-blue-700 transition-all shadow-md" type="submit">CRÉER LE COMPTE</button>
@@ -361,6 +369,42 @@ export default function AdminUsers() {
                 <button type="submit" className="flex-1 bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 rounded-lg transition-colors uppercase">Enregistrer</button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* ============================================================
+          NOUVELLE MODALE : Confirmation de suppression
+          ============================================================ */}
+      {showDeleteModal && userToDelete && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-white w-full max-w-md rounded-2xl shadow-2xl overflow-hidden">
+            <div className="px-6 py-4 border-b border-gray-200 flex justify-between items-center">
+              <h3 className="text-xl font-bold text-red-600">Supprimer ce compte ?</h3>
+              <button onClick={() => setShowDeleteModal(false)} className="text-gray-400 hover:text-red-500">
+                <span className="material-symbols-outlined">close</span>
+              </button>
+            </div>
+            <div className="p-6">
+              <p className="text-gray-700 mb-6">
+                Êtes-vous sûr de vouloir supprimer le compte de <span className="font-bold">{userToDelete.prenom} {userToDelete.nom}</span> ?<br />
+                <span className="text-red-500 text-sm font-semibold">Cette action est irréversible et toutes les données associées seront perdues.</span>
+              </p>
+              <div className="flex gap-3">
+                <button
+                  onClick={() => setShowDeleteModal(false)}
+                  className="flex-1 bg-gray-100 hover:bg-gray-200 text-gray-700 font-bold py-3 rounded-lg transition-colors uppercase"
+                >
+                  Annuler
+                </button>
+                <button
+                  onClick={handleDelete}
+                  className="flex-1 bg-red-600 hover:bg-red-700 text-white font-bold py-3 rounded-lg transition-colors uppercase"
+                >
+                  Supprimer
+                </button>
+              </div>
+            </div>
           </div>
         </div>
       )}

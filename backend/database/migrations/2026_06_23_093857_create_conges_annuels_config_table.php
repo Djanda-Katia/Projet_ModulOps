@@ -12,9 +12,8 @@ return new class extends Migration
     public function up(): void
     {
         Schema::table('users', function (Blueprint $table) {
-            // On ajoute la colonne pour stocker les jours de congés
-            // avec une valeur par défaut de 30 jours.
-            $table->integer('solde_conge')->default(30)->after('role_id');
+            // On convertit la colonne en JSON pour stocker les périodes correctement
+            $table->json('periode_conges_annuels')->nullable()->change();
         });
     }
 
@@ -24,8 +23,8 @@ return new class extends Migration
     public function down(): void
     {
         Schema::table('users', function (Blueprint $table) {
-            // On retire la colonne si on annule la migration
-            $table->dropColumn('solde_conge');
+            // Si on annule, on revient à une colonne texte simple
+            $table->string('periode_conges_annuels')->nullable()->change();
         });
     }
 };

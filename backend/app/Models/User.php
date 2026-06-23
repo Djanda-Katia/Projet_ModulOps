@@ -18,8 +18,8 @@ class User extends Authenticatable
         'password',
         'fonction',
         'role_id',
-        // CORRECTION : solde_conge ajouté pour que le seeder et les controllers puissent l'écrire
         'solde_conge',
+        'periode_conges_annuels',
     ];
 
     protected $hidden = [
@@ -32,8 +32,8 @@ class User extends Authenticatable
         return [
             'email_verified_at' => 'datetime',
             'password'          => 'hashed',
-            // CORRECTION : cast en integer pour que solde_conge soit toujours un nombre
             'solde_conge'       => 'integer',
+            'periode_conges_annuels' => 'array',
         ];
     }
 

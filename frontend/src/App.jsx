@@ -1,3 +1,4 @@
+import { useState, useEffect } from "react";
 import {
   BrowserRouter as Router,
   Routes,
@@ -6,6 +7,7 @@ import {
 } from "react-router-dom";
 import { useAuth } from "./context/AuthContext";
 import Layout from "./components/Layout";
+import { Toaster, toast } from 'react-hot-toast'; // Import du système de toasts
 
 // Import de toutes les pages
 import Login from "./pages/Login";
@@ -29,6 +31,7 @@ import TechnicianNotifications from "./pages/TechnicianNotifications";
 // Responsable
 import ManagerDashboard from "./pages/ManagerDashboard";
 import ManagerLeave from "./pages/ManagerLeave";
+import ManagerLeaveConfig from "./pages/ManagerLeaveConfig";
 import ManagerTickets from "./pages/ManagerTickets";
 import ManagerTicketDetail from "./pages/ManagerTicketDetail";
 import ManagerTasks from "./pages/ManagerTasks";
@@ -54,9 +57,49 @@ const RoleGate = ({ allowedRoles, children }) => {
   return children;
 };
 
+// ============================================================
+// INTERCEPTEUR GLOBAL D'ERREURS
+// ============================================================
 function App() {
+  useEffect(() => {
+    // Intercepter les erreurs de promesses non gérées
+    const handleUnhandledRejection = (event) => {
+      const message = event.reason?.message || "Une erreur inattendue est survenue.";
+      toast.error(message);
+    };
+    window.addEventListener("unhandledrejection", handleUnhandledRejection);
+    return () => window.removeEventListener("unhandledrejection", handleUnhandledRejection);
+  }, []);
+// ============================================================
+
   return (
     <Router>
+      {/* Le composant Toaster affiche les notifications en bas à droite */}
+      <Toaster 
+        position="bottom-right"
+        toastOptions={{
+          duration: 4000,
+          style: {
+            background: '#333',
+            color: '#fff',
+          },
+          success: {
+            duration: 3000,
+            style: {
+              background: '#10b981',
+              color: '#fff',
+            },
+          },
+          error: {
+            duration: 4000,
+            style: {
+              background: '#ef4444',
+              color: '#fff',
+            },
+          },
+        }}
+      />
+
       <Routes>
         {/* Pages publiques */}
         <Route path="/login" element={<Login />} />
@@ -180,6 +223,16 @@ function App() {
             <CheckAuth>
               <RoleGate allowedRoles={[2, 3]}>
                 <Layout><ManagerLeave /></Layout>
+              </RoleGate>
+            </CheckAuth>
+          }
+        />
+        <Route
+          path="/manager-leave-config"
+          element={
+            <CheckAuth>
+              <RoleGate allowedRoles={[2, 3]}>
+                <Layout><ManagerLeaveConfig /></Layout>
               </RoleGate>
             </CheckAuth>
           }

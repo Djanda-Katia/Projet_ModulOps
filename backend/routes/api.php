@@ -17,7 +17,7 @@ use App\Http\Controllers\AdminController;
 */
 
 // 1. ROUTES PUBLIQUES
-Route::post('/login', [AuthController::class, 'login']);
+Route::post('/login', [AuthController::class, 'login'])->name('login');
 Route::post('/password/forgot', [AuthController::class, 'reinitialiserMotDePasse']);
 Route::post('/password/reset', [AuthController::class, 'resetPassword']);
 
@@ -30,7 +30,7 @@ Route::middleware('auth:sanctum')->group(function () {
         return $request->user();
     });
 
-    // --- DASHBOARD (le contrôleur filtre les données selon le rôle connecté) ---
+    // --- DASHBOARD ---
     Route::get('/dashboard', [DashboardController::class, 'getDashboard']);
 
     // --- MODULE TICKETS ---
@@ -40,13 +40,9 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/tickets/{id}/confirmer', [TicketController::class, 'confirmerResolution']);
     Route::post('/tickets/{id}/signaler', [TicketController::class, 'signalerProbleme']);
     Route::get('/tickets/{id}', [TicketController::class, 'show']);
-
-    // Route pour récupérer la liste des techniciens disponibles (attribution manuelle)
     Route::get('/techniciens', function () {
         return \App\Models\User::where('role_id', 3)->get(['id', 'nom', 'prenom']);
     });
-
-    // Historique des commentaires d'un ticket
     Route::get('/tickets/{id}/commentaires', function ($id) {
         $ticket = \App\Models\Ticket::findOrFail($id);
         if (Auth::id() !== $ticket->user_id && Auth::id() !== $ticket->technicien_id) {
@@ -73,7 +69,6 @@ Route::middleware('auth:sanctum')->group(function () {
             ->orderBy('created_at', 'desc')
             ->get();
     });
-
     Route::patch('/notifications/{id}/lu', function (int $id) {
         \App\Models\Notification::where('id', $id)
             ->where('destinataire_id', Auth::id())
@@ -81,11 +76,19 @@ Route::middleware('auth:sanctum')->group(function () {
         return response()->json(['success' => true]);
     });
 
-    // --- ACCÈS RÉSERVÉS AUX RESPONSABLES (Rôle 2) ---
-    Route::middleware('role:2')->group(function () {
+    // --- ROUTES DU RESPONSABLE (Rôle 2) ET ADMIN (Rôle 4) ---
+    Route::middleware('role:2,4')->group(function () {
         Route::post('/taches', [TacheController::class, 'store']);
         Route::patch('/taches/{id}/valider', [TacheController::class, 'validerTerminaison']);
-        Route::patch('/taches/{id}/annuler', [TacheController::class, 'annulerTerminaison']); // NOUVEAU
+        Route::patch('/taches/{id}/annuler', [TacheController::class, 'annulerTerminaison']);
+        
+        // --- ROUTE DE CONFIGURATION DES CONGÉS ANNUELS ---
+        Route::patch('/manager/employes/{id}/config-conges', [CongeController::class, 'configurerEmploye']);
+    });
+
+    // --- ROUTE DE LECTURE POUR LE RESPONSABLE ET L'ADMIN (CORRIGÉE) ---
+    Route::get('/employes', function () {
+        return \App\Models\User::where('role_id', 1)->get(['id', 'nom', 'prenom', 'fonction', 'solde_conge', 'periode_conges_annuels']);
     });
 
     // --- ACCÈS RÉSERVÉS UNIQUEMENT À L'ADMINISTRATEUR (Rôle 4) ---
@@ -94,10 +97,6 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::post('/admin/users', [AdminController::class, 'store']);
         Route::patch('/admin/users/{id}/role', [AdminController::class, 'modifierRole']);
         Route::get('/admin/audit/export', [AdminController::class, 'exporterAudit']);
+        Route::delete('/admin/users/{id}', [AdminController::class, 'destroy']);
     });
-    Route::get('/employes', function () {
-        return \App\Models\User::where('role_id', 1)->get(['id', 'nom', 'prenom']);
-        })->middleware('auth:sanctum');    
-
-    
 });
