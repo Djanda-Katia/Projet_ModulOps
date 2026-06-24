@@ -40,8 +40,10 @@ class CongeController extends Controller
         $user = Auth::user();
 
         // ==== VÉRIFICATION TEMPS RÉEL ====
-        $aujourdhui = new \DateTime('now', new \DateTimeZone('Africa/Douala')); 
+        $aujourdhui = new \DateTime('now', new \DateTimeZone('Africa/Douala'));
+        $aujourdhui->setTime(0, 0, 0);
         $dateDebut  = new \DateTime($request->date_debut);
+        $dateDebut->setTime(0, 0, 0);
 
         if ($dateDebut < $aujourdhui) {
             return response()->json([
@@ -53,13 +55,55 @@ class CongeController extends Controller
         $fin           = new \DateTime($request->date_fin);
         $joursDemandes = $debut->diff($fin)->days + 1;
 
-        $soldeRestant = $user->solde_conge ?? 30;
+        // ==== VALIDATION SPÉCIFIQUE PAR TYPE ====
+        if ($request->type_conge === 'Annuel') {
+            // Vérifier que les dates sont dans les périodes autorisées
+            $periodes = is_array($user->periode_conges_annuels) ? $user->periode_conges_annuels : [];
 
-        if ($joursDemandes > $soldeRestant) {
-            return response()->json([
-                'message' => "Solde insuffisant. Vous demandez {$joursDemandes} jours alors qu'il ne vous reste que {$soldeRestant} jours."
-            ], 422);
+            if (empty($periodes)) {
+                return response()->json([
+                    'message' => 'Aucune période de congés annuels n\'a été configurée pour vous. Contactez votre responsable.'
+                ], 422);
+            }
+
+            $dansUnePeriode = false;
+            foreach ($periodes as $periode) {
+                $pStart = new \DateTime($periode['start']);
+                $pEnd   = new \DateTime($periode['end']);
+                if ($debut >= $pStart && $fin <= $pEnd) {
+                    $dansUnePeriode = true;
+                    break;
+                }
+            }
+
+            if (!$dansUnePeriode) {
+                return response()->json([
+                    'message' => 'Les dates demandées ne font pas partie des périodes de congés annuels autorisées par votre responsable.'
+                ], 422);
+            }
+
+            // Vérifier le solde restant (annuel uniquement)
+            $joursAnnuelsPris = DemandeConge::where('user_id', $user->id)
+                ->where('statut', 'Approuvée')
+                ->where('type_conge', 'Annuel')
+                ->get()
+                ->sum(fn($c) => (new \DateTime($c->date_debut))->diff(new \DateTime($c->date_fin))->days + 1);
+
+            $soldeTotalAnnuel = 0;
+            foreach ($periodes as $periode) {
+                $d = new \DateTime($periode['start']);
+                $f = new \DateTime($periode['end']);
+                $soldeTotalAnnuel += $d->diff($f)->days + 1;
+            }
+            $soldeRestant = max(0, $soldeTotalAnnuel - $joursAnnuelsPris);
+
+            if ($joursDemandes > $soldeRestant) {
+                return response()->json([
+                    'message' => "Solde insuffisant. Vous demandez {$joursDemandes} jours alors qu'il ne vous reste que {$soldeRestant} jours annuels."
+                ], 422);
+            }
         }
+        // Pour Maladie et Exceptionnel : pas de limite de solde, juste la date future
 
         $conge = DemandeConge::create([
             'user_id'    => $user->id,
@@ -108,11 +152,20 @@ class CongeController extends Controller
 
         if ($request->statut === 'Approuvée') {
             if ($conge->statut !== 'Approuvée') {
-                $nouveauSolde = $employe->solde_conge - $joursDemandes;
-                if ($nouveauSolde < 0) {
-                    return response()->json(['message' => 'Le solde deviendrait négatif.'], 422);
+                // On ne décrémente le solde que pour les congés ANNUELS
+                if ($conge->type_conge === 'Annuel') {
+                    $nouveauSolde = $employe->solde_conge - $joursDemandes;
+                    if ($nouveauSolde < 0) {
+                        return response()->json(['message' => 'Le solde deviendrait négatif.'], 422);
+                    }
+                    $employe->solde_conge = $nouveauSolde;
+                    $employe->save();
                 }
-                $employe->solde_conge = $nouveauSolde;
+            }
+        } elseif ($request->statut === 'Rejetée') {
+            // Si c'était déjà approuvé et qu'on le rejette, on rembourse
+            if ($conge->statut === 'Approuvée' && $conge->type_conge === 'Annuel') {
+                $employe->solde_conge += $joursDemandes;
                 $employe->save();
             }
         }
@@ -122,9 +175,10 @@ class CongeController extends Controller
             'motif'  => $request->motif
         ]);
 
+        $responsable = Auth::user();
         $messageNotif = ($request->statut === 'Rejetée')
-            ? "Votre demande de congé a été rejetée. Motif : {$request->motif}"
-            : "Votre demande de congé a été approuvée ! ({$joursDemandes} jours déduits)";
+            ? "❌ Votre demande de congé a été rejetée par {$responsable->prenom} {$responsable->nom}. Motif : {$request->motif}"
+            : "✅ Votre demande de congé a été approuvée par {$responsable->prenom} {$responsable->nom} ! ({$joursDemandes} jours déduits)";
 
         Notification::create([
             'destinataire_id' => $conge->user_id,
@@ -133,7 +187,7 @@ class CongeController extends Controller
             'lu'              => false
         ]);
 
-        $responsable = Auth::user();
+
         $this->logAudit("Décision sur demande de congé de {$employe->nom} {$employe->prenom} : {$request->statut} par {$responsable->nom} {$responsable->prenom}.");
 
         return response()->json([
@@ -216,6 +270,21 @@ class CongeController extends Controller
             'periode_conges_annuels' => $periodes,
         ]);
 
+        // Marquer comme lus les signalements associés à cet employé pour le(s) responsable(s)
+        $motifRecherche = "⚠️ {$employe->prenom} {$employe->nom} signale%";
+        Notification::where('type', 'signalement_conge_non_configure')
+            ->where('message', 'like', $motifRecherche)
+            ->where('lu', false)
+            ->update(['lu' => true]);
+
+        // Notifier l'employé que ses congés ont été configurés/modifiés
+        Notification::create([
+            'destinataire_id' => $employe->id,
+            'type'            => 'conge_configure',
+            'message'         => "📅 Vos périodes de congés annuels ont été configurées/mises à jour par votre responsable {$user->prenom} {$user->nom}.",
+            'lu'              => false,
+        ]);
+
         $this->logAudit("Configuration des congés annuels mise à jour pour {$employe->nom} {$employe->prenom} par {$user->nom} {$user->prenom}.");
 
         return response()->json([
@@ -223,5 +292,87 @@ class CongeController extends Controller
             'solde_conge' => $employe->solde_conge,
             'periode_conges_annuels' => $employe->periode_conges_annuels,
         ]);
+    }
+
+    /**
+     * Signalement : l'employé informe le responsable que ses congés annuels
+     * n'ont pas encore été configurés.
+     */
+    public function signalerNonConfigure()
+    {
+        $employe = Auth::user();
+
+        // Vérifier que c'est bien un employé (rôle 1)
+        if ($employe->role_id !== 1) {
+            return response()->json(['message' => 'Action non autorisée.'], 403);
+        }
+
+        // Vérifier qu'il n'est effectivement pas configuré
+        $periodes = is_array($employe->periode_conges_annuels) ? $employe->periode_conges_annuels : [];
+        if (!empty($periodes)) {
+            return response()->json(['message' => 'Vos congés annuels sont déjà configurés.'], 422);
+        }
+
+        // Envoyer une notification à tous les responsables
+        $responsables = User::where('role_id', 2)->get();
+        foreach ($responsables as $responsable) {
+            Notification::create([
+                'destinataire_id' => $responsable->id,
+                'type'            => 'signalement_conge_non_configure',
+                'message'         => "⚠️ {$employe->prenom} {$employe->nom} signale que ses congés annuels n'ont pas encore été configurés.",
+                'lu'              => false,
+            ]);
+        }
+
+        $this->logAudit("Signalement de congés non configurés par {$employe->nom} {$employe->prenom}.");
+
+        return response()->json([
+            'message' => 'Votre signalement a bien été transmis à votre responsable.'
+        ]);
+    }
+
+    /**
+     * Annuler une demande de congé (par l'employé)
+     */
+    public function annulerDemande(int $id)
+    {
+        $conge = DemandeConge::findOrFail($id);
+        
+        // Seul le propriétaire peut annuler
+        if (Auth::id() !== $conge->user_id) {
+            return response()->json(['message' => 'Action non autorisée.'], 403);
+        }
+
+        if (!in_array($conge->statut, ['En attente', 'Approuvée'])) {
+            return response()->json(['message' => 'Impossible d\'annuler cette demande.'], 422);
+        }
+
+        // Si la demande était déjà approuvée, on rembourse le solde
+        if ($conge->statut === 'Approuvée' && $conge->type_conge === 'Annuel') {
+            $debut = new \DateTime($conge->date_debut);
+            $fin   = new \DateTime($conge->date_fin);
+            $jours = $debut->diff($fin)->days + 1;
+
+            $employe = $conge->user;
+            $employe->solde_conge += $jours;
+            $employe->save();
+        }
+
+        $conge->delete();
+
+        $employe = Auth::user();
+        $responsables = User::where('role_id', 2)->get();
+        foreach ($responsables as $responsable) {
+            Notification::create([
+                'destinataire_id' => $responsable->id,
+                'type'            => 'conge_annule',
+                'message'         => "❌ {$employe->prenom} {$employe->nom} a annulé sa demande de congé {$conge->type_conge}.",
+                'lu'              => false
+            ]);
+        }
+
+        $this->logAudit("Annulation d'une demande de congé par {$employe->nom} {$employe->prenom}.");
+
+        return response()->json(['message' => 'Demande annulée avec succès.']);
     }
 }

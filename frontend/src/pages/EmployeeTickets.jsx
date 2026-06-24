@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
-import { Link } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import { getTickets, createTicket, getTechniciens } from "../services/api";
+import TicketDetailModal from "../components/TicketDetailModal";
 
 export default function EmployeeTickets() {
   const { token } = useAuth();
@@ -10,6 +10,7 @@ export default function EmployeeTickets() {
   const [tickets, setTickets] = useState([]);
   const [techniciens, setTechniciens] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [selectedTicketId, setSelectedTicketId] = useState(null);
 
   // Formulaire de création
   const [form, setForm] = useState({
@@ -20,25 +21,23 @@ export default function EmployeeTickets() {
   });
 
   // Charger les tickets et les techniciens au démarrage
-  useEffect(() => {
-    const fetchData = async () => {
-      try {
-        const [ticketsData, techniciensData] = await Promise.all([
-          getTickets(token),
-          getTechniciens(token),
-        ]);
-        setTickets(ticketsData);
-        setTechniciens(techniciensData);
-      } catch (error) {
-        console.error("Erreur chargement tickets:", error);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    if (token) {
-      fetchData();
+  const fetchData = async () => {
+    try {
+      const [ticketsData, techniciensData] = await Promise.all([
+        getTickets(token),
+        getTechniciens(token),
+      ]);
+      setTickets(ticketsData);
+      setTechniciens(techniciensData);
+    } catch (error) {
+      console.error("Erreur chargement tickets:", error);
+    } finally {
+      setLoading(false);
     }
+  };
+
+  useEffect(() => {
+    if (token) fetchData();
   }, [token]);
 
   // Soumettre un nouveau ticket
@@ -187,9 +186,12 @@ export default function EmployeeTickets() {
                       {new Date(ticket.created_at).toLocaleDateString()}
                     </td>
                     <td className="px-6 py-3 text-right">
-                      <Link to={`/employee-tickets/${ticket.id}`} className="text-blue-600 font-bold hover:underline text-sm">
+                      <button
+                        onClick={() => setSelectedTicketId(ticket.id)}
+                        className="text-blue-600 font-bold hover:underline text-sm"
+                      >
                         Voir détails
-                      </Link>
+                      </button>
                     </td>
                   </tr>
                 ))
@@ -272,6 +274,15 @@ export default function EmployeeTickets() {
             </form>
           </div>
         </div>
+      )}
+
+      {selectedTicketId && (
+        <TicketDetailModal
+          ticketId={selectedTicketId}
+          role={1}
+          onClose={() => setSelectedTicketId(null)}
+          onUpdated={() => fetchData()}
+        />
       )}
     </div>
   );

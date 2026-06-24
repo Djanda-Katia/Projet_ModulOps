@@ -1,13 +1,14 @@
 import { useState, useEffect } from "react";
-import { Link } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import { getTickets } from "../services/api";
+import TicketDetailModal from "../components/TicketDetailModal";
 
 export default function TechnicianTickets() {
   const { token } = useAuth();
   const [statusFilter, setStatusFilter] = useState("all");
   const [tickets, setTickets] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [selectedTicketId, setSelectedTicketId] = useState(null);
 
   const loadTickets = async () => {
     if (!token) return;
@@ -142,7 +143,12 @@ export default function TechnicianTickets() {
                     </td>
                     <td className="px-6 py-3 text-gray-500">{formatDate(ticket.date || ticket.created_at)}</td>
                     <td className="px-6 py-3 text-right">
-                      <Link to={`/technician-tickets/${ticket.id}`} className="text-blue-600 font-bold hover:underline text-sm">Voir détails</Link>
+                      <button
+                        onClick={() => setSelectedTicketId(ticket.id)}
+                        className="text-blue-600 font-bold hover:underline text-sm"
+                      >
+                        Voir détails
+                      </button>
                     </td>
                   </tr>
                 ))
@@ -151,6 +157,15 @@ export default function TechnicianTickets() {
           </table>
         </div>
       </div>
+
+      {selectedTicketId && (
+        <TicketDetailModal
+          ticketId={selectedTicketId}
+          role={3}
+          onClose={() => setSelectedTicketId(null)}
+          onUpdated={() => loadTickets()}
+        />
+      )}
     </div>
   );
 }

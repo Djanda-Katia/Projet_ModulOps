@@ -3,7 +3,7 @@ import { useEffect, useState } from "react";
 import { getDashboard } from "../services/api";
 
 export default function EmployeeDashboard() {
-  const { user, token } = useAuth(); // On récupère le token et l'utilisateur
+  const { user, token } = useAuth();
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
 
@@ -29,47 +29,92 @@ export default function EmployeeDashboard() {
 
   return (
     <div className="space-y-8">
-      {/* --- STAT CARDS (Maintenant dynamiques) --- */}
+      {/* --- STAT CARDS --- */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+
+        {/* Solde annuel */}
         <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200 flex items-start justify-between">
           <div>
-            <p className="text-sm text-gray-500 mb-1">Solde de congés</p>
-            <h3 className="text-3xl font-bold text-gray-900">{data.stats.solde_conge} jours</h3>
+            <p className="text-sm text-gray-500 mb-1">Solde annuel restant</p>
+            {data.stats.solde_annuel_total > 0 ? (
+              <h3 className="text-3xl font-bold text-gray-900">
+                {data.stats.solde_annuel_restant}
+                <span className="text-lg font-medium text-gray-400"> / {data.stats.solde_annuel_total} j</span>
+              </h3>
+            ) : (
+              <h3 className="text-base font-semibold text-gray-400 mt-1">Non configuré</h3>
+            )}
           </div>
           <div className="p-3 bg-blue-100 rounded-lg text-blue-600">
             <span className="material-symbols-outlined" style={{ fontVariationSettings: "'FILL' 1" }}>calendar_month</span>
           </div>
         </div>
 
+        {/* Congés pris */}
         <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200 flex items-start justify-between">
           <div>
-            <p className="text-sm text-gray-500 mb-1">Congés pris</p>
-            <h3 className="text-3xl font-bold text-gray-900">{data.stats.jours_conges_pris} jours</h3>
+            <p className="text-sm text-gray-500 mb-1">Congés annuels pris</p>
+            <h3 className="text-3xl font-bold text-gray-900">{data.stats.jours_annuels_pris} <span className="text-lg font-medium text-gray-400">jours</span></h3>
           </div>
           <div className="p-3 bg-orange-100 rounded-lg text-orange-600">
             <span className="material-symbols-outlined" style={{ fontVariationSettings: "'FILL' 1" }}>event_busy</span>
           </div>
         </div>
 
-        <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200 flex items-start justify-between">
-          <div>
-            <p className="text-sm text-gray-500 mb-1">Tickets ouverts</p>
-            <h3 className="text-3xl font-bold text-gray-900">{data.stats.tickets_ouverts}</h3>
-          </div>
-          <div className="p-3 bg-red-100 rounded-lg text-red-600">
-            <span className="material-symbols-outlined" style={{ fontVariationSettings: "'FILL' 1" }}>warning</span>
-          </div>
-        </div>
+        {/* Congé maladie actif */}
+        {(() => {
+          const maladie = data.conges_actifs?.Maladie;
+          return (
+            <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200 flex items-start justify-between">
+              <div>
+                <p className="text-sm text-gray-500 mb-1">Congé maladie</p>
+                {maladie?.actif ? (
+                  maladie.jours_restants === 0 ? (
+                    <h3 className="text-xl font-bold text-amber-600">Dernier jour</h3>
+                  ) : (
+                    <h3 className="text-3xl font-bold text-gray-900">
+                      {maladie.jours_restants}
+                      <span className="text-lg font-medium text-gray-400"> j restants</span>
+                    </h3>
+                  )
+                ) : (
+                  <h3 className="text-sm font-semibold text-gray-400 mt-1">Aucun congé maladie</h3>
+                )}
+              </div>
+              <div className={`p-3 rounded-lg ${maladie?.actif ? 'bg-red-100 text-red-600' : 'bg-gray-100 text-gray-400'}`}>
+                <span className="material-symbols-outlined" style={{ fontVariationSettings: "'FILL' 1" }}>health_and_safety</span>
+              </div>
+            </div>
+          );
+        })()}
 
-        <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200 flex items-start justify-between">
-          <div>
-            <p className="text-sm text-gray-500 mb-1">Tâches en cours</p>
-            <h3 className="text-3xl font-bold text-gray-900">{data.stats.taches_en_cours}</h3>
-          </div>
-          <div className="p-3 bg-green-100 rounded-lg text-green-600">
-            <span className="material-symbols-outlined" style={{ fontVariationSettings: "'FILL' 1" }}>assignment</span>
-          </div>
-        </div>
+        {/* Congé exceptionnel actif */}
+        {(() => {
+          const excep = data.conges_actifs?.Exceptionnel;
+          return (
+            <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200 flex items-start justify-between">
+              <div>
+                <p className="text-sm text-gray-500 mb-1">Congé exceptionnel</p>
+                {excep?.actif ? (
+                  excep.jours_restants === 0 ? (
+                    <h3 className="text-xl font-bold text-amber-600">Dernier jour</h3>
+                  ) : (
+                    <h3 className="text-3xl font-bold text-gray-900">
+                      {excep.jours_restants}
+                      <span className="text-lg font-medium text-gray-400"> j restants</span>
+                    </h3>
+                  )
+                ) : (
+                  <h3 className="text-sm font-semibold text-gray-400 mt-1">Aucun congé exceptionnel</h3>
+                )}
+              </div>
+              <div className={`p-3 rounded-lg ${excep?.actif ? 'bg-purple-100 text-purple-600' : 'bg-gray-100 text-gray-400'}`}>
+                <span className="material-symbols-outlined" style={{ fontVariationSettings: "'FILL' 1" }}>star</span>
+              </div>
+            </div>
+          );
+        })()}
+
       </div>
 
       {/* --- MAIN GRID (Tableaux dynamiques) --- */}

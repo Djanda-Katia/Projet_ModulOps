@@ -39,6 +39,8 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/tickets/{id}/commentaires', [TicketController::class, 'ajouterCommentaire']);
     Route::post('/tickets/{id}/confirmer', [TicketController::class, 'confirmerResolution']);
     Route::post('/tickets/{id}/signaler', [TicketController::class, 'signalerProbleme']);
+    Route::delete('/tickets/{id}', [TicketController::class, 'destroy']);
+    Route::post('/tickets/{id}/fermer', [TicketController::class, 'fermerParAuteur']);
     Route::get('/tickets/{id}', [TicketController::class, 'show']);
     Route::get('/techniciens', function () {
         return \App\Models\User::where('role_id', 3)->get(['id', 'nom', 'prenom']);
@@ -48,12 +50,14 @@ Route::middleware('auth:sanctum')->group(function () {
         if (Auth::id() !== $ticket->user_id && Auth::id() !== $ticket->technicien_id) {
             return response()->json(['message' => 'Non autorisé'], 403);
         }
-        return $ticket->commentaires()->orderBy('created_at', 'asc')->get();
+        return $ticket->commentaires()->with('auteur')->orderBy('created_at', 'asc')->get();
     });
 
     // --- MODULE GESTION DES CONGÉS ---
     Route::get('/conges', [CongeController::class, 'index']);
     Route::post('/conges/demande', [CongeController::class, 'soumettreDemande']);
+    Route::delete('/conges/{id}', [CongeController::class, 'annulerDemande']);
+    Route::post('/conges/signaler-responsable', [CongeController::class, 'signalerNonConfigure']);
     Route::post('/conges/decider/{id}', [CongeController::class, 'decider'])->middleware('role:2');
 
     // --- MODULE TÂCHES ---
@@ -63,7 +67,6 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::get('/toutes-taches', [TacheController::class, 'allTasks'])->middleware('role:2');
     });
 
-    // --- MODULE NOTIFICATIONS ---
     Route::get('/notifications', function () {
         return \App\Models\Notification::where('destinataire_id', Auth::id())
             ->orderBy('created_at', 'desc')
@@ -72,6 +75,12 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::patch('/notifications/{id}/lu', function (int $id) {
         \App\Models\Notification::where('id', $id)
             ->where('destinataire_id', Auth::id())
+            ->update(['lu' => true]);
+        return response()->json(['success' => true]);
+    });
+    Route::post('/notifications/tout-lu', function () {
+        \App\Models\Notification::where('destinataire_id', Auth::id())
+            ->where('lu', false)
             ->update(['lu' => true]);
         return response()->json(['success' => true]);
     });

@@ -46,29 +46,35 @@ class DashboardController extends Controller
                 );
 
                 return [
-                    'id'               => $employe->id,
-                    'nom'              => $employe->nom,
-                    'prenom'           => $employe->prenom,
-                    'fonction'         => $employe->fonction,
-                    'solde_conge'      => $employe->solde_conge,
-                    'jours_conges_pris' => $joursPris,
-                    'taches_stats'     => [
+                    'id'                      => $employe->id,
+                    'nom'                     => $employe->nom,
+                    'prenom'                  => $employe->prenom,
+                    'fonction'                => $employe->fonction,
+                    'solde_conge'             => $employe->solde_conge,
+                    'periode_conges_annuels'  => is_array($employe->periode_conges_annuels) ? $employe->periode_conges_annuels : [],
+                    'jours_conges_pris'       => $joursPris,
+                    'taches_stats'            => [
                         'a_faire'   => $taches->where('statut', 'À faire')->count(),
                         'en_cours'  => $taches->where('statut', 'En cours')->count(),
                         'terminees' => $taches->whereIn('statut', ['Terminée', 'Fermée'])->count(),
                     ],
-                    // Liste complète des tâches de l'employé
-                    'taches'           => $taches->values(),
+                    'taches'                  => $taches->values(),
                 ];
             });
+
+            // Signalements de congés non configurés (non lus)
+            $signalements = \App\Models\Notification::where('destinataire_id', $user->id)
+                ->where('type', 'signalement_conge_non_configure')
+                ->where('lu', false)
+                ->orderBy('created_at', 'desc')
+                ->get();
 
             return response()->json([
                 'type'                   => 'responsable',
                 'nb_conges_en_attente'   => $congesEnAttente->count(),
-                // Liste des demandes de congés en attente avec détail
                 'conges_en_attente'      => $congesEnAttente,
-                // Suivi complet de l'équipe
                 'suivi_equipe'           => $equipe,
+                'signalements_non_lus'   => $signalements,
             ]);
         }
 
@@ -102,17 +108,14 @@ class DashboardController extends Controller
         // CDC 4.6 : Statut de ses demandes de congés, ses tickets, ses tâches
         // ---------------------------------------------------------------
 
-        // Demandes de congé avec tous les statuts
         $conges = DemandeConge::where('user_id', $user->id)
             ->orderBy('created_at', 'desc')
             ->get();
 
-        // Tickets soumis par l'employé
         $tickets = Ticket::where('user_id', $user->id)
             ->orderBy('created_at', 'desc')
             ->get();
 
-        // Tâches assignées via la table pivot
         $tachesIds = AffectationTache::where('utilisateur_id', $user->id)
             ->pluck('tache_id');
 
@@ -120,25 +123,74 @@ class DashboardController extends Controller
             ->orderBy('created_at', 'desc')
             ->get();
 
-        // Calcul des jours de congés déjà pris
-        $joursPris = $conges->where('statut', 'Approuvée')->sum(
+        // --- SOLDE ANNUEL DYNAMIQUE ---
+        // Total des jours dans les périodes configurées par le responsable
+        $periodes = is_array($user->periode_conges_annuels) ? $user->periode_conges_annuels : [];
+        $soldeTotalAnnuel = 0;
+        foreach ($periodes as $periode) {
+            $d = new \DateTime($periode['start']);
+            $f = new \DateTime($periode['end']);
+            $soldeTotalAnnuel += $d->diff($f)->days + 1;
+        }
+
+        // Jours de congés ANNUELS approuvés seulement
+        $joursAnnuelsPris = $conges
+            ->where('statut', 'Approuvée')
+            ->where('type_conge', 'Annuel')
+            ->sum(fn($c) => (new \DateTime($c->date_debut))->diff(new \DateTime($c->date_fin))->days + 1);
+
+        $soldeAnnuelRestant = max(0, $soldeTotalAnnuel - $joursAnnuelsPris);
+
+        // Tous types confondus pour info
+        $joursTotalPris = $conges->where('statut', 'Approuvée')->sum(
             fn($c) => (new \DateTime($c->date_debut))->diff(new \DateTime($c->date_fin))->days + 1
         );
 
+        // --- CONGÉS MALADIE / EXCEPTIONNELS ACTIFS (compte à rebours) ---
+        $aujourdhui = new \DateTime('now', new \DateTimeZone('Africa/Douala'));
+        $aujourdhui->setTime(0, 0, 0);
+        $todayStr = $aujourdhui->format('Y-m-d');
+
+        $congesActifs = [];
+        foreach (['Maladie', 'Exceptionnel'] as $type) {
+            // Trouver le congé approuvé de ce type dont la fin n'est pas encore passée
+            $actif = $conges
+                ->where('statut', 'Approuvée')
+                ->where('type_conge', $type)
+                ->filter(fn($c) => $c->date_fin >= $todayStr)
+                ->sortBy('date_debut')
+                ->first();
+
+            if ($actif) {
+                $fin = new \DateTime($actif->date_fin);
+                // Jours restants = jours APRÈS aujourd'hui dans cette période
+                $joursRestants = (int) $aujourdhui->diff($fin)->days;
+                $congesActifs[$type] = [
+                    'actif'          => true,
+                    'jours_restants' => $joursRestants,
+                    'date_debut'     => $actif->date_debut,
+                    'date_fin'       => $actif->date_fin,
+                ];
+            } else {
+                $congesActifs[$type] = ['actif' => false, 'jours_restants' => 0];
+            }
+        }
+
         return response()->json([
-            'type'          => 'employe',
-            // Résumé chiffré
-            'stats' => [
-                'solde_conge'      => $user->solde_conge,
-                'jours_conges_pris' => $joursPris,
-                'solde_restant'    => $user->solde_conge - $joursPris,
-                'tickets_ouverts'  => $tickets->where('statut', 'Ouvert')->count(),
-                'taches_en_cours'  => $taches->where('statut', 'En cours')->count(),
+            'type'    => 'employe',
+            'stats'   => [
+                'solde_annuel_total'   => $soldeTotalAnnuel,
+                'solde_annuel_restant' => $soldeAnnuelRestant,
+                'jours_annuels_pris'   => $joursAnnuelsPris,
+                'jours_conges_pris'    => $joursTotalPris,
+                'tickets_ouverts'      => $tickets->where('statut', 'Ouvert')->count(),
+                'taches_en_cours'      => $taches->where('statut', 'En cours')->count(),
             ],
-            // Listes complètes pour affichage dans l'interface
-            'conges'        => $conges,
-            'tickets'       => $tickets,
-            'taches'        => $taches,
+            'conges_actifs'           => $congesActifs,
+            'periode_conges_annuels'  => $periodes,
+            'conges'                  => $conges,
+            'tickets'                 => $tickets,
+            'taches'                  => $taches,
         ]);
     }
 }

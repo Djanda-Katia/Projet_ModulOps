@@ -58,10 +58,11 @@ class TacheController extends Controller
                 'utilisateur_id' => $employeId,
             ]);
 
+            $responsable = Auth::user();
             Notification::create([
                 'destinataire_id' => $employeId,
                 'type'            => 'tache_assignee',
-                'message'         => "Une nouvelle tâche vous a été assignée : '{$tache->titre}'.",
+                'message'         => "Une nouvelle tâche vous a été assignée par le responsable {$responsable->prenom} {$responsable->nom} : '{$tache->titre}'.",
                 'lu'              => false
             ]);
         }
@@ -97,16 +98,30 @@ class TacheController extends Controller
 
         // CDC 4.7 : Tâche terminée → notification au responsable
         if ($request->statut === 'Terminée') {
+            $employe = Auth::user();
             Notification::create([
                 'destinataire_id' => $tache->assigne_par,
                 'type'            => 'tache_terminee',
-                'message'         => "L'employé a marqué la tâche '{$tache->titre}' comme Terminée. Veuillez la valider.",
+                'message'         => "L'employé {$employe->prenom} {$employe->nom} a marqué la tâche '{$tache->titre}' comme Terminée. Veuillez la valider.",
                 'lu'              => false
             ]);
 
             // AUDIT
-            $employe = Auth::user();
             $this->logAudit("Tâche '{$tache->titre}' marquée Terminée par {$employe->nom} {$employe->prenom}.");
+        }
+
+        // Ajout : Notification au responsable quand la tâche passe En cours
+        if ($request->statut === 'En cours') {
+            $employe = Auth::user();
+            Notification::create([
+                'destinataire_id' => $tache->assigne_par,
+                'type'            => 'tache_encours',
+                'message'         => "L'employé {$employe->prenom} {$employe->nom} a commencé à travailler sur la tâche '{$tache->titre}' (Statut: En cours).",
+                'lu'              => false
+            ]);
+
+            // AUDIT
+            $this->logAudit("Tâche '{$tache->titre}' passée En cours par {$employe->nom} {$employe->prenom}.");
         }
 
         return response()->json(['message' => 'Statut de la tâche mis à jour.']);
@@ -136,11 +151,12 @@ class TacheController extends Controller
         $employesIds = $assignations->pluck('utilisateur_id')->unique();
 
         // Notification à chaque employé assigné
+        $responsable = Auth::user();
         foreach ($employesIds as $employeId) {
             Notification::create([
                 'destinataire_id' => $employeId,
                 'type'            => 'tache_fermee',
-                'message'         => "Votre tâche '{$tache->titre}' a été validée et clôturée par le responsable.",
+                'message'         => "✅ Votre tâche '{$tache->titre}' a été validée et clôturée par le responsable {$responsable->prenom} {$responsable->nom}.",
                 'lu'              => false
             ]);
         }
@@ -172,6 +188,7 @@ class TacheController extends Controller
         $tache->update(['statut' => 'En cours']);
 
         // Notification à l'employé qui avait terminé la tâche
+        $responsable = Auth::user();
         $assignations = AffectationTache::where('tache_id', $id)->get();
         $employesIds = $assignations->pluck('utilisateur_id')->unique();
 
@@ -179,7 +196,7 @@ class TacheController extends Controller
             Notification::create([
                 'destinataire_id' => $employeId,
                 'type'            => 'tache_rouverte',
-                'message'         => "La tâche '{$tache->titre}' a été rouverte par le responsable. Veuillez la reprendre.",
+                'message'         => "❌ La tâche '{$tache->titre}' a été rejetée et rouverte par le responsable {$responsable->prenom} {$responsable->nom}. Veuillez la reprendre.",
                 'lu'              => false
             ]);
         }

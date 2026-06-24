@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { useAuth } from "../context/AuthContext";
 import { getConges, decideConge } from "../services/api";
 import { Link } from "react-router-dom";
+import toast from "react-hot-toast";
 
 // ===============================================================
 // FONCTION FORMAT DD/MM/YYYY (strict)
@@ -57,8 +58,9 @@ export default function ManagerLeave() {
           req.id === id ? { ...req, statut: statut, motif: motif || req.motif } : req
         )
       );
+      toast.success(statut === "Rejetée" ? "Congé rejeté/annulé" : "Décision enregistrée");
     } catch (error) {
-      alert("Erreur : " + error.message);
+      toast.error("Erreur : " + error.message);
     }
   };
 
@@ -171,16 +173,30 @@ export default function ManagerLeave() {
                             <button
                               onClick={() => handleDecision(req.id, "Approuvée")}
                               className="text-green-600 hover:bg-green-50 p-1 rounded transition-colors"
+                              title="Approuver"
                             >
                               <span className="material-symbols-outlined">check</span>
                             </button>
                             <button
                               onClick={() => handleDecision(req.id, "Rejetée")}
                               className="text-red-600 hover:bg-red-50 p-1 rounded transition-colors"
+                              title="Rejeter"
                             >
                               <span className="material-symbols-outlined">close</span>
                             </button>
                           </>
+                        )}
+                        {req.statut === "Approuvée" && (
+                          <button
+                            onClick={() => {
+                              if(window.confirm("Voulez-vous vraiment annuler ce congé approuvé ? Le solde de l'employé sera remboursé.")) {
+                                handleDecision(req.id, "Rejetée");
+                              }
+                            }}
+                            className="bg-red-50 text-red-600 hover:bg-red-100 px-3 py-1.5 rounded text-xs font-bold transition-colors"
+                          >
+                            Annuler
+                          </button>
                         )}
                       </td>
                     </tr>

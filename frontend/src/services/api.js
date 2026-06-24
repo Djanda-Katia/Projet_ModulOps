@@ -84,6 +84,43 @@ export const soumettreConge = async (token, data) => {
   return handleResponse(response);
 };
 
+// Signaler au responsable que les congés annuels ne sont pas configurés
+export const signalerCongesNonConfigures = async (token) => {
+  const response = await fetch(`${API_BASE}/conges/signaler-responsable`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "Authorization": `Bearer ${token}`,
+    },
+  });
+  return handleResponse(response);
+};
+
+// Marquer toutes les notifications de signalement comme lues
+export const marquerSignalementsLus = async (token, signalements) => {
+  for (const n of signalements) {
+    await fetch(`${API_BASE}/notifications/${n.id}/lu`, {
+      method: "PATCH",
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": `Bearer ${token}`,
+      },
+    });
+  }
+  return true;
+};
+
+// Annuler une demande de congé (employé)
+export const annulerDemandeConge = async (token, id) => {
+  const response = await fetch(`${API_BASE}/conges/${id}`, {
+    method: "DELETE",
+    headers: {
+      "Authorization": `Bearer ${token}`,
+    },
+  });
+  return handleResponse(response);
+};
+
 // Fonction pour récupérer la liste des tickets
 export const getTickets = async (token) => {
   const response = await fetch(`${API_BASE}/tickets`, {
@@ -133,6 +170,45 @@ export const getTicketById = async (token, id) => {
   return handleResponse(response);
 };
 
+
+
+// Fonction pour récupérer les commentaires d'un ticket
+export const getTicketComments = async (token, id) => {
+  const response = await fetch(`${API_BASE}/tickets/${id}/commentaires`, {
+    method: "GET",
+    headers: {
+      "Content-Type": "application/json",
+      "Authorization": `Bearer ${token}`,
+    },
+  });
+  return handleResponse(response);
+};
+
+// Supprimer un ticket (Ouvert)
+export const deleteTicket = async (token, id) => {
+  const response = await fetch(`${API_BASE}/tickets/${id}`, {
+    method: "DELETE",
+    headers: {
+      "Content-Type": "application/json",
+      "Authorization": `Bearer ${token}`,
+    },
+  });
+  return handleResponse(response);
+};
+
+// Fermer un ticket (En cours) avec motif
+export const closeTicketEarly = async (token, id, motif) => {
+  const response = await fetch(`${API_BASE}/tickets/${id}/fermer`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "Authorization": `Bearer ${token}`,
+    },
+    body: JSON.stringify({ motif })
+  });
+  return handleResponse(response);
+};
+
 // Confirmer la résolution d'un ticket (Employé)
 export const confirmTicket = async (token, id) => {
   const response = await fetch(`${API_BASE}/tickets/${id}/confirmer`, {
@@ -157,17 +233,7 @@ export const signalTicket = async (token, id) => {
   return handleResponse(response);
 };
 
-// Récupérer les commentaires d'un ticket
-export const getTicketComments = async (token, id) => {
-  const response = await fetch(`${API_BASE}/tickets/${id}/commentaires`, {
-    method: "GET",
-    headers: {
-      "Content-Type": "application/json",
-      "Authorization": `Bearer ${token}`,
-    },
-  });
-  return handleResponse(response);
-};
+
 
 // Ajouter un commentaire à un ticket, avec changement de statut optionnel
 export const addTicketComment = async (token, id, contenu, statut = null) => {
@@ -196,19 +262,14 @@ export const getNotifications = async (token) => {
 };
 
 export const markAllNotificationsAsRead = async (token) => {
-  const notifs = await getNotifications(token);
-  for (const n of notifs) {
-    if (!n.lu) {
-      await fetch(`${API_BASE}/notifications/${n.id}/lu`, {
-        method: "PATCH",
-        headers: {
-          "Content-Type": "application/json",
-          "Authorization": `Bearer ${token}`,
-        },
-      });
-    }
-  }
-  return true;
+  const response = await fetch(`${API_BASE}/notifications/tout-lu`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "Authorization": `Bearer ${token}`,
+    },
+  });
+  return handleResponse(response);
 };
 
 // --- TÂCHES ---

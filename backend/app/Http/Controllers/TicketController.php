@@ -14,6 +14,18 @@ class TicketController extends Controller
 {
     use LogsAudit;
 
+    /** Retourne le label lisible du role de l'utilisateur */
+    private function roleLabel(User $user): string
+    {
+        return match($user->role_id) {
+            1 => "L'employe",
+            2 => 'Le responsable',
+            3 => 'Le technicien',
+            4 => "L'administrateur",
+            default => "L'utilisateur",
+        };
+    }
+
     /**
      * Liste des tickets filtrée selon le rôle et le statut
      */
@@ -94,16 +106,17 @@ class TicketController extends Controller
             'statut'        => 'Ouvert'
         ]);
 
+        // AUDIT + Notification
+        $createur = Auth::user();
+
         // CDC 4.7 : Notification au technicien lors de l'assignation
         Notification::create([
             'destinataire_id' => $technicien->id,
             'type'            => 'ticket_assigne',
-            'message'         => "Un nouveau ticket (Priorité : {$priorite}) vous a été attribué : '{$ticket->titre}'.",
+            'message'         => "{$this->roleLabel($createur)} {$createur->prenom} {$createur->nom} vous a assigné un nouveau ticket [{$priorite}] : '{$ticket->titre}'.",
             'lu'              => false
         ]);
 
-        // AUDIT
-        $createur = Auth::user();
         $this->logAudit("Création du ticket '{$ticket->titre}' (Priorité : {$priorite}) par {$createur->nom} {$createur->prenom}, assigné à {$technicien->nom} {$technicien->prenom}.");
 
         return response()->json([
@@ -125,7 +138,7 @@ class TicketController extends Controller
 
         $request->validate([
             'contenu' => 'required|string',
-            'statut'  => 'nullable|in:En cours,Résolu'
+            'statut'  => 'nullable|in:Ouvert,En cours,Résolu'
         ]);
 
         $ticket = Ticket::findOrFail($id);
@@ -146,21 +159,28 @@ class TicketController extends Controller
 
             // CDC 4.7 : Ticket résolu → notification au créateur du ticket
             if ($request->statut === 'Résolu') {
+                $technicien = Auth::user();
                 Notification::create([
                     'destinataire_id' => $ticket->user_id,
                     'type'            => 'ticket_resolu',
-                    'message'         => "Votre ticket '{$ticket->titre}' a été marqué comme Résolu. Veuillez confirmer la résolution.",
+                    'message'         => "Le technicien {$technicien->prenom} {$technicien->nom} a marqué votre ticket '{$ticket->titre}' comme Résolu. Veuillez le confirmer.",
                     'lu'              => false
                 ]);
 
                 // AUDIT
-                $technicien = Auth::user();
                 $this->logAudit("Ticket '{$ticket->titre}' marqué comme Résolu par {$technicien->nom} {$technicien->prenom}.");
             }
 
             if ($request->statut === 'En cours') {
-                // AUDIT
                 $technicien = Auth::user();
+                // Notification au créateur du ticket
+                Notification::create([
+                    'destinataire_id' => $ticket->user_id,
+                    'type'            => 'ticket_encours',
+                    'message'         => "Le technicien {$technicien->prenom} {$technicien->nom} a pris en charge votre ticket '{$ticket->titre}' (Statut: En cours).",
+                    'lu'              => false
+                ]);
+                // AUDIT
                 $this->logAudit("Ticket '{$ticket->titre}' passé En cours par {$technicien->nom} {$technicien->prenom}.");
             }
         }
@@ -212,11 +232,12 @@ class TicketController extends Controller
         $ticket->update(['statut' => 'Fermé']);
 
         // CDC 4.7 : Ticket fermé → notification au technicien
+        $confirmateur = Auth::user();
         if ($ticket->technicien_id) {
             Notification::create([
                 'destinataire_id' => $ticket->technicien_id,
                 'type'            => 'ticket_ferme',
-                'message'         => "Le ticket '{$ticket->titre}' a été confirmé et fermé. Merci pour votre intervention.",
+                'message'         => "{$confirmateur->prenom} {$confirmateur->nom} a confirmé la résolution et fermé le ticket '{$ticket->titre}'.",
                 'lu'              => false
             ]);
         }
@@ -231,7 +252,7 @@ class TicketController extends Controller
     /**
      * L'utilisateur signale un problème (rouvre le ticket)
      */
-    public function signalerProbleme(int $id)
+    public function signalerProbleme(Request $request, int $id)
     {
         $ticket = Ticket::where('id', $id)
             ->where('user_id', Auth::id())
@@ -243,13 +264,95 @@ class TicketController extends Controller
 
         $ticket->update(['statut' => 'En cours']);
 
-        // Optionnel : ajouter un commentaire automatique
+        // Message personnalisé de l'utilisateur ou message par défaut
+        $message = $request->input('message', 'Le problème n\'est pas résolu.');
+
         CommentaireTicket::create([
             'ticket_id' => $ticket->id,
             'auteur_id' => Auth::id(),
-            'contenu'   => "Le problème n'est pas résolu. Ticket rouvert."
+            'contenu'   => "⚠️ Problème signalé par l'utilisateur : {$message}"
         ]);
 
+        // Notifier le technicien assigné
+        $signaleur = Auth::user();
+        if ($ticket->technicien_id) {
+            Notification::create([
+                'destinataire_id' => $ticket->technicien_id,
+                'type'            => 'ticket_signale',
+                'message'         => "⚠️ {$signaleur->prenom} {$signaleur->nom} a signalé que le problème persiste sur le ticket '{$ticket->titre}'. Veuillez intervenir.",
+                'lu'              => false
+            ]);
+        }
+
+        $signaleur = Auth::user();
+        $this->logAudit("Ticket '{$ticket->titre}' signalé par {$signaleur->nom} {$signaleur->prenom}.");
+
         return response()->json(['message' => 'Problème signalé, ticket rouvert.']);
+    }
+
+    /**
+     * Supprime un ticket (seulement s'il est Ouvert et par son auteur)
+     */
+    public function destroy(int $id)
+    {
+        $ticket = Ticket::where('id', $id)->where('user_id', Auth::id())->firstOrFail();
+
+        if ($ticket->statut !== 'Ouvert') {
+            return response()->json(['message' => 'Impossible de supprimer un ticket qui n\'est plus Ouvert.'], 422);
+        }
+
+        // Notifier le technicien de l'annulation
+        $auteur = Auth::user();
+        if ($ticket->technicien_id) {
+            Notification::create([
+                'destinataire_id' => $ticket->technicien_id,
+                'type'            => 'ticket_annule',
+                'message'         => "❌ L'utilisateur {$auteur->prenom} {$auteur->nom} a annulé et supprimé le ticket '{$ticket->titre}'.",
+                'lu'              => false
+            ]);
+        }
+
+        $ticket->delete();
+
+        $this->logAudit("Ticket '{$ticket->titre}' supprimé par son auteur {$auteur->nom} {$auteur->prenom}.");
+
+        return response()->json(['message' => 'Ticket supprimé avec succès.']);
+    }
+
+    /**
+     * L'auteur ferme un ticket anticipément (seulement s'il est En cours) avec motif
+     */
+    public function fermerParAuteur(Request $request, int $id)
+    {
+        $request->validate(['motif' => 'required|string']);
+
+        $ticket = Ticket::where('id', $id)->where('user_id', Auth::id())->firstOrFail();
+
+        if ($ticket->statut !== 'En cours') {
+            return response()->json(['message' => 'Seul un ticket En cours peut être fermé de cette manière.'], 422);
+        }
+
+        $ticket->update(['statut' => 'Fermé']);
+        $auteur = Auth::user();
+
+        // Ajouter le motif en commentaire
+        CommentaireTicket::create([
+            'ticket_id' => $ticket->id,
+            'auteur_id' => Auth::id(),
+            'contenu'   => "🔒 Ticket fermé par l'auteur. Motif : " . $request->motif
+        ]);
+
+        if ($ticket->technicien_id) {
+            Notification::create([
+                'destinataire_id' => $ticket->technicien_id,
+                'type'            => 'ticket_ferme_anticipement',
+                'message'         => "🔒 {$auteur->prenom} {$auteur->nom} a fermé le ticket '{$ticket->titre}'. Motif : {$request->motif}",
+                'lu'              => false
+            ]);
+        }
+
+        $this->logAudit("Ticket '{$ticket->titre}' fermé anticipément par {$auteur->nom} {$auteur->prenom}.");
+
+        return response()->json(['message' => 'Ticket fermé avec succès.']);
     }
 }

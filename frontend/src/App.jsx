@@ -18,14 +18,12 @@ import ResetPassword from "./pages/ResetPassword";
 import EmployeeDashboard from "./pages/EmployeeDashboard";
 import EmployeeLeave from "./pages/EmployeeLeave";
 import EmployeeTickets from "./pages/EmployeeTickets";
-import EmployeeTicketDetail from "./pages/EmployeeTicketDetail";
 import EmployeeTasks from "./pages/EmployeeTasks";
 import EmployeeNotifications from "./pages/EmployeeNotifications";
 
 // Technicien
 import TechnicianDashboard from "./pages/TechnicianDashboard";
 import TechnicianTickets from "./pages/TechnicianTickets";
-import TechnicianTicketDetail from "./pages/TechnicianTicketDetail";
 import TechnicianNotifications from "./pages/TechnicianNotifications";
 
 // Responsable
@@ -33,7 +31,6 @@ import ManagerDashboard from "./pages/ManagerDashboard";
 import ManagerLeave from "./pages/ManagerLeave";
 import ManagerLeaveConfig from "./pages/ManagerLeaveConfig";
 import ManagerTickets from "./pages/ManagerTickets";
-import ManagerTicketDetail from "./pages/ManagerTicketDetail";
 import ManagerTasks from "./pages/ManagerTasks";
 import ManagerNotifications from "./pages/ManagerNotifications.jsx";
 
@@ -137,16 +134,7 @@ function App() {
             </CheckAuth>
           }
         />
-        <Route
-          path="/employee-tickets/:id"
-          element={
-            <CheckAuth>
-              <RoleGate allowedRoles={[1, 2]}>
-                <Layout><EmployeeTicketDetail /></Layout>
-              </RoleGate>
-            </CheckAuth>
-          }
-        />
+
         <Route
           path="/employee-tasks"
           element={
@@ -187,16 +175,7 @@ function App() {
             </CheckAuth>
           }
         />
-        <Route
-          path="/technician-tickets/:id"
-          element={
-            <CheckAuth>
-              <RoleGate allowedRoles={[2, 3]}>
-                <Layout><TechnicianTicketDetail /></Layout>
-              </RoleGate>
-            </CheckAuth>
-          }
-        />
+
         <Route
           path="/technician-notifications"
           element={
@@ -247,16 +226,7 @@ function App() {
             </CheckAuth>
           }
         />
-        <Route
-          path="/manager-tickets/:id"
-          element={
-            <CheckAuth>
-              <RoleGate allowedRoles={[2, 3]}>
-                <Layout><ManagerTicketDetail /></Layout>
-              </RoleGate>
-            </CheckAuth>
-          }
-        />
+
         <Route
           path="/manager-tasks"
           element={

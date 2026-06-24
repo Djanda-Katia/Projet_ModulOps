@@ -1,17 +1,21 @@
 import { useEffect, useState } from "react";
 import { useAuth } from "../context/AuthContext";
 import { getManagerDashboard } from "../services/api";
+import { useNavigate } from "react-router-dom";
 
 export default function ManagerDashboard() {
   const { token } = useAuth();
+  const navigate = useNavigate();
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [signalements, setSignalements] = useState([]);
 
   useEffect(() => {
     const fetchDashboard = async () => {
       try {
         const result = await getManagerDashboard(token);
         setData(result);
+        setSignalements(result.signalements_non_lus ?? []);
       } catch (error) {
         console.error("Erreur chargement dashboard:", error);
       } finally {
@@ -31,7 +35,33 @@ export default function ManagerDashboard() {
 
   return (
     <div className="space-y-8">
-      <h1 className="text-2xl font-bold text-gray-900">Bonjour, Paul Tchinda !</h1>
+
+      {/* ===== BANNIÈRE : Signalements de congés non configurés ===== */}
+      {signalements.length > 0 && (
+        <div className="bg-amber-50 border border-amber-300 rounded-xl p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4 shadow-sm relative">
+
+          <div className="flex items-start gap-3">
+            <span className="material-symbols-outlined text-amber-500 text-2xl mt-0.5" style={{ fontVariationSettings: "'FILL' 1" }}>notification_important</span>
+            <div>
+              <p className="font-bold text-amber-800 text-sm">
+                {signalements.length} signalement{signalements.length > 1 ? 's' : ''} — Congés annuels non configurés
+              </p>
+              <ul className="mt-1 space-y-0.5">
+                {signalements.map(s => (
+                  <li key={s.id} className="text-amber-700 text-sm">{s.message}</li>
+                ))}
+              </ul>
+            </div>
+          </div>
+          <button
+            onClick={() => navigate('/manager-leave-config')}
+            className="shrink-0 bg-amber-500 hover:bg-amber-600 text-white text-sm font-bold px-5 py-2.5 rounded-lg transition-colors whitespace-nowrap"
+          >
+            Configurer
+          </button>
+        </div>
+      )}
+
 
       {/* Stat Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
