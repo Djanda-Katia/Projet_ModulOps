@@ -3,6 +3,9 @@ import { useAuth } from "../context/AuthContext";
 import { getConges, decideConge } from "../services/api";
 import { Link } from "react-router-dom";
 import toast from "react-hot-toast";
+import FilterBar from "../components/FilterBar";
+import Pagination from "../components/Pagination";
+import ConfirmModal from "../components/ConfirmModal";
 
 // ===============================================================
 // FONCTION FORMAT DD/MM/YYYY (strict)
@@ -24,53 +27,51 @@ const formatDate = (dateString) => {
 
 export default function ManagerLeave() {
   const { token } = useAuth();
-  const [activeTab, setActiveTab] = useState("En attente");
   const [requests, setRequests] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [lastPage, setLastPage] = useState(1);
+  const [filters, setFilters] = useState({});
+  const [confirmConfig, setConfirmConfig] = useState({ isOpen: false, id: null, action: null, motif: "" });
 
-  useEffect(() => {
-    const fetchRequests = async () => {
-      try {
-        const data = await getConges(token);
-        setRequests(data);
-      } catch (error) {
-        console.error("Erreur chargement congés:", error);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    if (token) {
-      fetchRequests();
-    }
-  }, [token]);
-
-  const handleDecision = async (id, statut) => {
-    let motif = "";
-    if (statut === "Rejetée") {
-      motif = prompt("Motif du rejet :");
-      if (motif === null) return;
-    }
+  const fetchRequests = async (page = 1, currentFilters = filters) => {
     try {
-      await decideConge(token, id, statut, motif);
-      setRequests(prevRequests =>
-        prevRequests.map(req =>
-          req.id === id ? { ...req, statut: statut, motif: motif || req.motif } : req
-        )
-      );
-      toast.success(statut === "Rejetée" ? "Congé rejeté/annulé" : "Décision enregistrée");
+      setLoading(true);
+      const data = await getConges(token, { page, ...currentFilters });
+      setRequests(data.data || []);
+      setCurrentPage(data.current_page || 1);
+      setLastPage(data.last_page || 1);
     } catch (error) {
-      toast.error("Erreur : " + error.message);
+      console.error("Erreur chargement congés:", error);
+    } finally {
+      setLoading(false);
     }
   };
 
-  const countPending = requests.filter(r => r.statut === "En attente").length;
-  const countApproved = requests.filter(r => r.statut === "Approuvée").length;
-  const countRejected = requests.filter(r => r.statut === "Rejetée").length;
+  useEffect(() => {
+    if (token) fetchRequests(1, filters);
+  }, [token]);
 
-  const filteredRequests = requests.filter(r => r.statut === activeTab);
+  const handleFilterChange = (newFilters) => {
+    setFilters(newFilters);
+    fetchRequests(1, newFilters);
+  };
 
-  if (loading) return <div>Chargement...</div>;
+  const handlePageChange = (page) => {
+    fetchRequests(page, filters);
+  };
+
+  const handleDecision = async (id, statut, motif = "") => {
+    try {
+      await decideConge(token, id, statut, motif);
+      fetchRequests(currentPage, filters);
+      toast.success(statut === "Rejetée" ? "✅ Congé rejeté/annulé" : "✅ Décision enregistrée avec succès");
+    } catch (error) {
+      toast.error("❌ Erreur : " + error.message);
+    }
+  };
+
+  
 
   return (
     <div className="space-y-6">
@@ -88,45 +89,17 @@ export default function ManagerLeave() {
         </Link>
       </div>
 
-      <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 flex items-center gap-3">
-        <span className="material-symbols-outlined text-blue-600">pending_actions</span>
-        <span className="text-sm text-blue-900 font-semibold">{countPending} demandes en attente de validation</span>
-      </div>
+      <FilterBar
+        onFilterChange={handleFilterChange}
+        showPerson={false}
+        statusOptions={[
+          { value: 'En attente', label: 'En attente' },
+          { value: 'Approuvée', label: 'Approuvée' },
+          { value: 'Rejetée', label: 'Rejetée' }
+        ]}
+      />
 
       <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
-        <div className="flex border-b border-gray-200">
-          <button
-            onClick={() => setActiveTab("En attente")}
-            className={`px-6 py-3 text-sm font-bold border-b-2 transition-colors ${
-              activeTab === "En attente"
-                ? "border-blue-600 text-blue-600"
-                : "border-transparent text-gray-500 hover:text-gray-700"
-            }`}
-          >
-            En attente ({countPending})
-          </button>
-          <button
-            onClick={() => setActiveTab("Approuvée")}
-            className={`px-6 py-3 text-sm font-bold border-b-2 transition-colors ${
-              activeTab === "Approuvée"
-                ? "border-blue-600 text-blue-600"
-                : "border-transparent text-gray-500 hover:text-gray-700"
-            }`}
-          >
-            Approuvées ({countApproved})
-          </button>
-          <button
-            onClick={() => setActiveTab("Rejetée")}
-            className={`px-6 py-3 text-sm font-bold border-b-2 transition-colors ${
-              activeTab === "Rejetée"
-                ? "border-blue-600 text-blue-600"
-                : "border-transparent text-gray-500 hover:text-gray-700"
-            }`}
-          >
-            Rejetées ({countRejected})
-          </button>
-        </div>
-
         <div className="overflow-x-auto">
           <table className="w-full text-left text-sm">
             <thead className="bg-gray-50 text-gray-500 text-xs uppercase tracking-wider">
@@ -142,8 +115,8 @@ export default function ManagerLeave() {
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100">
-              {filteredRequests.length > 0 ? (
-                filteredRequests.map((req) => {
+              {requests.length > 0 ? (
+                requests.map((req) => {
                   const jours = Math.ceil(
                     (new Date(req.date_fin) - new Date(req.date_debut)) / (1000 * 60 * 60 * 24)
                   ) + 1;
@@ -171,14 +144,14 @@ export default function ManagerLeave() {
                         {req.statut === "En attente" && (
                           <>
                             <button
-                              onClick={() => handleDecision(req.id, "Approuvée")}
+                              onClick={() => setConfirmConfig({ isOpen: true, id: req.id, action: "Approuvée", motif: "" })}
                               className="text-green-600 hover:bg-green-50 p-1 rounded transition-colors"
                               title="Approuver"
                             >
                               <span className="material-symbols-outlined">check</span>
                             </button>
                             <button
-                              onClick={() => handleDecision(req.id, "Rejetée")}
+                              onClick={() => setConfirmConfig({ isOpen: true, id: req.id, action: "Rejetée", motif: "" })}
                               className="text-red-600 hover:bg-red-50 p-1 rounded transition-colors"
                               title="Rejeter"
                             >
@@ -189,9 +162,7 @@ export default function ManagerLeave() {
                         {req.statut === "Approuvée" && (
                           <button
                             onClick={() => {
-                              if(window.confirm("Voulez-vous vraiment annuler ce congé approuvé ? Le solde de l'employé sera remboursé.")) {
-                                handleDecision(req.id, "Rejetée");
-                              }
+                                setConfirmConfig({ isOpen: true, id: req.id, action: "Annuler", motif: "" });
                             }}
                             className="bg-red-50 text-red-600 hover:bg-red-100 px-3 py-1.5 rounded text-xs font-bold transition-colors"
                           >
@@ -213,6 +184,32 @@ export default function ManagerLeave() {
           </table>
         </div>
       </div>
+
+      <Pagination
+        currentPage={currentPage}
+        lastPage={lastPage}
+        onPageChange={handlePageChange}
+      />
+
+      <ConfirmModal 
+        isOpen={confirmConfig.isOpen}
+        title={confirmConfig.action === "Approuvée" ? "Approuver le congé ?" : confirmConfig.action === "Rejetée" ? "Rejeter le congé ?" : "Annuler le congé approuvé ?"}
+        message={
+          confirmConfig.action === "Approuvée" 
+            ? "Êtes-vous sûr de vouloir approuver cette demande de congé ?" 
+            : confirmConfig.action === "Rejetée"
+              ? "Êtes-vous sûr de vouloir rejeter cette demande de congé ?"
+              : "Voulez-vous vraiment annuler ce congé approuvé ? Le solde de l'employé sera remboursé."
+        }
+        onCancel={() => setConfirmConfig({ isOpen: false, id: null, action: null, motif: "" })}
+        onConfirm={() => handleDecision(confirmConfig.id, confirmConfig.action === "Annuler" ? "Rejetée" : confirmConfig.action, confirmConfig.motif)}
+        isDanger={confirmConfig.action === "Rejetée" || confirmConfig.action === "Annuler"}
+        confirmText="Confirmer"
+        showInput={confirmConfig.action === "Rejetée"}
+        inputPlaceholder="Motif du rejet (optionnel)..."
+        inputValue={confirmConfig.motif}
+        onInputChange={(val) => setConfirmConfig({ ...confirmConfig, motif: val })}
+      />
     </div>
   );
 }

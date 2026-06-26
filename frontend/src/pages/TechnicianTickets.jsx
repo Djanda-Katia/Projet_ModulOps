@@ -2,20 +2,37 @@ import { useState, useEffect } from "react";
 import { useAuth } from "../context/AuthContext";
 import { getTickets } from "../services/api";
 import TicketDetailModal from "../components/TicketDetailModal";
+import FilterBar from "../components/FilterBar";
+import Pagination from "../components/Pagination";
 
 export default function TechnicianTickets() {
   const { token } = useAuth();
-  const [statusFilter, setStatusFilter] = useState("all");
   const [tickets, setTickets] = useState([]);
   const [loading, setLoading] = useState(true);
   const [selectedTicketId, setSelectedTicketId] = useState(null);
 
-  const loadTickets = async () => {
+  // Pagination et filtres
+  const [currentPage, setCurrentPage] = useState(1);
+  const [lastPage, setLastPage] = useState(1);
+  const [filters, setFilters] = useState({});
+
+  const [activeTab, setActiveTab] = useState('actifs'); // 'actifs' ou 'historique'
+
+  const loadTickets = async (page = 1, currentFilters = filters, tab = activeTab) => {
     if (!token) return;
     try {
       setLoading(true);
-      const data = await getTickets(token);
-      setTickets(Array.isArray(data) ? data : []);
+      
+      // Injecter le filtre de statut basé sur l'onglet actif s'il n'y a pas de statut sélectionné dans FilterBar
+      let finalFilters = { ...currentFilters };
+      if (!finalFilters.statut) {
+        finalFilters.statut = tab === 'actifs' ? 'Ouvert,En cours' : 'Résolu,Fermé';
+      }
+
+      const data = await getTickets(token, { page, ...finalFilters });
+      setTickets(data.data || []);
+      setCurrentPage(data.current_page || 1);
+      setLastPage(data.last_page || 1);
     } catch (error) {
       console.error("Erreur chargement tickets:", error);
     } finally {
@@ -24,34 +41,32 @@ export default function TechnicianTickets() {
   };
 
   useEffect(() => {
-    loadTickets();
-  }, [token]);
+    loadTickets(1, filters, activeTab);
+  }, [token, activeTab]);
 
-  const filtered = statusFilter === "all" 
-    ? tickets 
-    : tickets.filter(t => t.statut === statusFilter);
+  const handleFilterChange = (newFilters) => {
+    setFilters(newFilters);
+    loadTickets(1, newFilters, activeTab);
+  };
+
+  const handlePageChange = (page) => {
+    loadTickets(page, filters, activeTab);
+  };
 
   // ===============================================================
   // CORRECTION : Afficher le vrai nom de l'auteur ou du technicien
   // ===============================================================
   const getPersonName = (ticket) => {
-    // 1. Vérifier si le backend a envoyé l'auteur (Le créateur du ticket : Employé ou Responsable)
     if (ticket.auteur && typeof ticket.auteur === 'object') {
       const a = ticket.auteur;
-      // Si on a le prénom et le nom séparés
       if (a.prenom && a.nom) return `${a.prenom} ${a.nom}`;
-      // Sinon on cherche le premier champ disponible
       return a.nom || a.prenom || a.name || a.email || "Utilisateur";
     }
-
-    // 2. Vérifier si le backend a envoyé le technicien assigné (Si c'est le technicien qui regarde ses tickets)
     if (ticket.technicien && typeof ticket.technicien === 'object') {
       const t = ticket.technicien;
       if (t.prenom && t.nom) return `${t.prenom} ${t.nom}`;
       return t.nom || t.prenom || t.name || t.email || "Technicien";
     }
-
-    // 3. Fallback ultime (si le backend ne renvoie que l'ID)
     if (ticket.user_id) return `Utilisateur #${ticket.user_id}`;
     return "Inconnu";
   };
@@ -63,7 +78,6 @@ export default function TechnicianTickets() {
     if (parts.length >= 2) return (parts[0][0] + parts[1][0]).toUpperCase();
     return name.substring(0, 2).toUpperCase();
   };
-  // ===============================================================
 
   const formatDate = (dateString) => {
     if (!dateString) return "N/A";
@@ -79,8 +93,6 @@ export default function TechnicianTickets() {
     }
   };
 
-  if (loading) return <div className="text-center py-10 text-gray-500">Chargement des tickets...</div>;
-
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-end">
@@ -90,15 +102,34 @@ export default function TechnicianTickets() {
         </div>
       </div>
 
-      <div className="flex justify-end">
-        <select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)} className="bg-white border border-gray-200 rounded-lg px-4 py-2 text-sm outline-none cursor-pointer">
-          <option value="all">Tous les statuts</option>
-          <option value="Ouvert">Ouvert</option>
-          <option value="En cours">En cours</option>
-          <option value="Résolu">Résolu</option>
-          <option value="Fermé">Fermé</option>
-        </select>
+      {/* ── Onglets de classification ── */}
+      <div className="flex items-center gap-6 border-b border-gray-200">
+        <button
+          onClick={() => { setFilters({}); setActiveTab('actifs'); }}
+          className={`pb-3 text-sm font-bold transition-all border-b-2 ${
+            activeTab === 'actifs' ? 'border-blue-600 text-blue-700' : 'border-transparent text-gray-500 hover:text-gray-700'
+          }`}
+        >
+          En cours & Ouverts
+        </button>
+        <button
+          onClick={() => { setFilters({}); setActiveTab('historique'); }}
+          className={`pb-3 text-sm font-bold transition-all border-b-2 ${
+            activeTab === 'historique' ? 'border-blue-600 text-blue-700' : 'border-transparent text-gray-500 hover:text-gray-700'
+          }`}
+        >
+          Historique (Résolus & Fermés)
+        </button>
       </div>
+
+      <FilterBar 
+        onFilterChange={handleFilterChange} 
+        showPerson={false}
+        statusOptions={activeTab === 'actifs' 
+          ? [{ value: 'Ouvert', label: 'Ouvert' }, { value: 'En cours', label: 'En cours' }]
+          : [{ value: 'Résolu', label: 'Résolu' }, { value: 'Fermé', label: 'Fermé' }]
+        }
+      />
 
       <div className="bg-white rounded-xl shadow-sm border border-gray-200">
         <div className="overflow-x-auto">
@@ -115,10 +146,10 @@ export default function TechnicianTickets() {
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100">
-              {filtered.length === 0 ? (
+              {tickets.length === 0 ? (
                 <tr><td colSpan="7" className="text-center py-6 text-gray-500">Aucun ticket trouvé.</td></tr>
               ) : (
-                filtered.map((ticket) => (
+                tickets.map((ticket) => (
                   <tr key={ticket.id} className="hover:bg-gray-50">
                     <td className="px-6 py-3 font-semibold">{ticket.titre}</td>
                     <td className="px-6 py-3 text-gray-500">{ticket.categorie}</td>
@@ -158,12 +189,18 @@ export default function TechnicianTickets() {
         </div>
       </div>
 
+      <Pagination 
+        currentPage={currentPage} 
+        lastPage={lastPage} 
+        onPageChange={handlePageChange} 
+      />
+
       {selectedTicketId && (
         <TicketDetailModal
           ticketId={selectedTicketId}
           role={3}
           onClose={() => setSelectedTicketId(null)}
-          onUpdated={() => loadTickets()}
+          onUpdated={() => loadTickets(currentPage, filters)}
         />
       )}
     </div>

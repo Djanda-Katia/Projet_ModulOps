@@ -12,9 +12,41 @@ class AdminController extends Controller
 {
     use LogsAudit;
 
-    public function index()
+    public function index(Request $request)
     {
-        return User::orderBy('created_at', 'desc')->get();
+        $query = User::query();
+
+        if ($request->has('role_id') && $request->role_id) {
+            $query->whereIn('role_id', explode(',', $request->role_id));
+        }
+
+        if ($request->has('search') && $request->search) {
+            $search = $request->search;
+            $query->where(function($q) use ($search) {
+                $q->where('nom', 'like', "%{$search}%")
+                  ->orWhere('prenom', 'like', "%{$search}%")
+                  ->orWhere('email', 'like', "%{$search}%")
+                  ->orWhere('fonction', 'like', "%{$search}%");
+            });
+        }
+
+        if ($request->has('dates') && $request->dates) {
+            $datesArray = explode(',', $request->dates);
+            $query->whereIn(\Illuminate\Support\Facades\DB::raw('DATE(created_at)'), $datesArray);
+        }
+
+        if ($request->has('periode') && $request->periode) {
+            $now = \Carbon\Carbon::now();
+            switch ($request->periode) {
+                case '7j': $query->where('created_at', '>=', $now->copy()->subDays(7)); break;
+                case '15j': $query->where('created_at', '>=', $now->copy()->subDays(15)); break;
+                case '30j': $query->where('created_at', '>=', $now->copy()->subDays(30)); break;
+                case '60j': $query->where('created_at', '>=', $now->copy()->subDays(60)); break;
+                case 'plus_1an': $query->where('created_at', '<', $now->copy()->subYear()); break;
+            }
+        }
+
+        return $query->orderBy('created_at', 'desc')->paginate(10);
     }
 
     public function store(Request $request)

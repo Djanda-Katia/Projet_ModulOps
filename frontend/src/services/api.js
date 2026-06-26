@@ -3,6 +3,19 @@
 // L'URL de base de ton backend (port 8000)
 const API_BASE = import.meta.env.VITE_API_URL ?? "http://127.0.0.1:8000/api";
 
+// Fonction utilitaire pour gérer les requêtes avec paramètres
+const buildQuery = (params) => {
+  if (!params || Object.keys(params).length === 0) return "";
+  const query = new URLSearchParams();
+  for (const [key, value] of Object.entries(params)) {
+    if (value !== undefined && value !== null && value !== '') {
+      query.append(key, value);
+    }
+  }
+  const queryString = query.toString();
+  return queryString ? `?${queryString}` : "";
+};
+
 // Fonction utilitaire pour gérer les réponses du serveur
 const handleResponse = async (response) => {
   // Si la réponse n'est pas OK (ex: 500, 404)
@@ -60,8 +73,8 @@ export const getDashboard = async (token) => {
 };
 
 // Fonction pour récupérer la liste des congés
-export const getConges = async (token) => {
-  const response = await fetch(`${API_BASE}/conges`, {
+export const getConges = async (token, params = {}) => {
+  const response = await fetch(`${API_BASE}/conges${buildQuery(params)}`, {
     method: "GET",
     headers: {
       "Content-Type": "application/json",
@@ -122,8 +135,8 @@ export const annulerDemandeConge = async (token, id) => {
 };
 
 // Fonction pour récupérer la liste des tickets
-export const getTickets = async (token) => {
-  const response = await fetch(`${API_BASE}/tickets`, {
+export const getTickets = async (token, params = {}) => {
+  const response = await fetch(`${API_BASE}/tickets${buildQuery(params)}`, {
     method: "GET",
     headers: {
       "Content-Type": "application/json",
@@ -250,8 +263,8 @@ export const addTicketComment = async (token, id, contenu, statut = null) => {
 };
 
 // --- NOTIFICATIONS ---
-export const getNotifications = async (token) => {
-  const response = await fetch(`${API_BASE}/notifications`, {
+export const getNotifications = async (token, params = {}) => {
+  const response = await fetch(`${API_BASE}/notifications${buildQuery(params)}`, {
     method: "GET",
     headers: {
       "Content-Type": "application/json",
@@ -273,8 +286,8 @@ export const markAllNotificationsAsRead = async (token) => {
 };
 
 // --- TÂCHES ---
-export const getMyTasks = async (token) => {
-  const response = await fetch(`${API_BASE}/mes-taches`, {
+export const getMyTasks = async (token, params = {}) => {
+  const response = await fetch(`${API_BASE}/mes-taches${buildQuery(params)}`, {
     method: "GET",
     headers: {
       "Content-Type": "application/json",
@@ -357,8 +370,19 @@ export const getEmployes = async (token) => {
   return handleResponse(response);
 };
 
-export const getAllTasks = async (token) => {
-  const response = await fetch(`${API_BASE}/toutes-taches`, {
+export const getAllTasks = async (token, params = {}) => {
+  const response = await fetch(`${API_BASE}/toutes-taches${buildQuery(params)}`, {
+    method: "GET",
+    headers: {
+      "Content-Type": "application/json",
+      "Authorization": `Bearer ${token}`,
+    },
+  });
+  return handleResponse(response);
+};
+
+export const getUsers = async (token, params = {}) => {
+  const response = await fetch(`${API_BASE}/admin/users${buildQuery(params)}`, {
     method: "GET",
     headers: {
       "Content-Type": "application/json",

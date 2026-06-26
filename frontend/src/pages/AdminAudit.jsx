@@ -1,4 +1,5 @@
 import { useState } from "react";
+import toast from "react-hot-toast";
 
 export default function AdminAudit() {
   // FAUSSES DONNÉES TEMPORAIRES (En attendant le Backend)
@@ -28,7 +29,7 @@ export default function AdminAudit() {
   // Export CSV
   const handleExportCSV = () => {
     if (logs.length === 0) {
-      alert("Aucune donnée à exporter.");
+      toast.error("Aucune donnée à exporter.");
       return;
     }
     const headers = ["ID", "Action", "Utilisateur", "Date"];

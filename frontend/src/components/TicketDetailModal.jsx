@@ -1,6 +1,8 @@
 import { useState, useEffect } from "react";
 import { useAuth } from "../context/AuthContext";
 import { getTicketById, getTicketComments, deleteTicket, closeTicketEarly } from "../services/api";
+import toast from "react-hot-toast";
+import ConfirmModal from "./ConfirmModal";
 
 const API_BASE = import.meta.env.VITE_API_URL ?? "http://127.0.0.1:8000/api";
 
@@ -75,6 +77,8 @@ export default function TicketDetailModal({ ticketId, role, onClose, onUpdated }
   const [showEarlyCloseForm, setShowEarlyCloseForm] = useState(false);
   const [earlyCloseMotif, setEarlyCloseMotif] = useState("");
 
+  const [confirmConfig, setConfirmConfig] = useState({ isOpen: false });
+
   // ---- Charger le ticket ----
   const loadData = async () => {
     if (!token || !ticketId) return;
@@ -99,7 +103,7 @@ export default function TicketDetailModal({ ticketId, role, onClose, onUpdated }
   // ---- Technicien : intervenir ----
   const handleIntervention = async (e) => {
     e.preventDefault();
-    if (!newComment.trim()) return alert("Le commentaire est obligatoire.");
+    if (!newComment.trim()) return toast.error("❌ Le commentaire est obligatoire.");
     setIsSubmitting(true);
     try {
       const body = { contenu: newComment };
@@ -122,9 +126,10 @@ export default function TicketDetailModal({ ticketId, role, onClose, onUpdated }
       }
       setNewComment("");
       await loadData();
+      toast.success("✅ Intervention enregistrée avec succès");
       if (onUpdated) onUpdated();
     } catch (err) {
-      alert(`Erreur : ${err.message}`);
+      toast.error(`❌ Erreur : ${err.message}`);
     } finally {
       setIsSubmitting(false);
     }
@@ -138,16 +143,17 @@ export default function TicketDetailModal({ ticketId, role, onClose, onUpdated }
         headers: { Authorization: `Bearer ${token}` },
       });
       if (!res.ok) throw new Error("Erreur confirmation");
+      toast.success("✅ Résolution confirmée avec succès");
       await loadData();
       if (onUpdated) onUpdated();
     } catch (err) {
-      alert(err.message);
+      toast.error("❌ " + err.message);
     }
   };
 
   // ---- Employé : signaler problème ----
   const handleSignal = async () => {
-    if (!signalMessage.trim()) return alert("Veuillez décrire le problème.");
+    if (!signalMessage.trim()) return toast.error("❌ Veuillez décrire le problème.");
     try {
       const res = await fetch(`${API_BASE}/tickets/${ticketId}/signaler`, {
         method: "POST",
@@ -157,36 +163,38 @@ export default function TicketDetailModal({ ticketId, role, onClose, onUpdated }
       if (!res.ok) throw new Error("Erreur signalement");
       setShowSignalForm(false);
       setSignalMessage("");
+      toast.success("✅ Signalement envoyé");
       await loadData();
       if (onUpdated) onUpdated();
     } catch (err) {
-      alert(err.message);
+      toast.error("❌ " + err.message);
     }
   };
 
   // ---- Employé : supprimer le ticket (si Ouvert) ----
   const handleDelete = async () => {
-    if (!window.confirm("Êtes-vous sûr de vouloir supprimer ce ticket ?")) return;
     try {
       await deleteTicket(token, ticketId);
+      toast.success("✅ Ticket supprimé avec succès");
       if (onUpdated) onUpdated();
       onClose();
     } catch (err) {
-      alert("Erreur lors de la suppression du ticket.");
+      toast.error("❌ Erreur lors de la suppression du ticket.");
     }
   };
 
   // ---- Employé : fermer anticipément (si En cours) ----
   const handleEarlyClose = async () => {
-    if (!earlyCloseMotif.trim()) return alert("Veuillez donner un motif de fermeture.");
+    if (!earlyCloseMotif.trim()) return toast.error("❌ Veuillez donner un motif de fermeture.");
     try {
       await closeTicketEarly(token, ticketId, earlyCloseMotif);
       setShowEarlyCloseForm(false);
       setEarlyCloseMotif("");
+      toast.success("✅ Ticket fermé avec succès");
       await loadData();
       if (onUpdated) onUpdated();
     } catch (err) {
-      alert("Erreur lors de la fermeture du ticket.");
+      toast.error("❌ Erreur lors de la fermeture du ticket.");
     }
   };
 
@@ -245,7 +253,7 @@ export default function TicketDetailModal({ ticketId, role, onClose, onUpdated }
               {/* Actions supplémentaires Employé/Responsable (Supprimer / Fermer) */}
               {role !== 3 && ticket.statut === "Ouvert" && (
                 <div className="flex justify-end">
-                  <button onClick={handleDelete} className="text-red-500 hover:text-red-700 text-sm font-bold flex items-center gap-1 transition-colors">
+                  <button onClick={() => setConfirmConfig({ isOpen: true })} className="text-red-500 hover:text-red-700 text-sm font-bold flex items-center gap-1 transition-colors">
                     <span className="material-symbols-outlined text-sm">delete</span>
                     Annuler et supprimer ce ticket
                   </button>
@@ -407,6 +415,15 @@ export default function TicketDetailModal({ ticketId, role, onClose, onUpdated }
           )}
         </div>
       </div>
+      <ConfirmModal 
+        isOpen={confirmConfig.isOpen}
+        title="Supprimer ce ticket ?"
+        message="Êtes-vous sûr de vouloir supprimer ce ticket ? Cette action est irréversible."
+        onCancel={() => setConfirmConfig({ isOpen: false })}
+        onConfirm={handleDelete}
+        isDanger={true}
+        confirmText="Supprimer"
+      />
     </div>
   );
 }

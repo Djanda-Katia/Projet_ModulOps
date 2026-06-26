@@ -1,6 +1,9 @@
 import { useState, useEffect } from "react";
 import { useAuth } from "../context/AuthContext";
 import toast from 'react-hot-toast';
+import { getUsers } from "../services/api";
+import FilterBar from "../components/FilterBar";
+import Pagination from "../components/Pagination";
 
 const API_BASE = import.meta.env.VITE_API_URL ?? "http://localhost:8000";
 
@@ -8,6 +11,9 @@ export default function AdminUsers() {
   const { token } = useAuth();
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [lastPage, setLastPage] = useState(1);
+  const [filters, setFilters] = useState({});
 
   // États des modales
   const [showCreateModal, setShowCreateModal] = useState(false);
@@ -42,31 +48,33 @@ export default function AdminUsers() {
   };
   // ---------------------------------------------------------
 
-  // 1. Charger les utilisateurs depuis l'API
-  const loadUsers = async () => {
+  const loadUsers = async (page = 1, currentFilters = filters) => {
     if (!token) return;
     try {
       setLoading(true);
-      const res = await fetch(`${API_BASE}/api/admin/users`, {
-        method: "GET",
-        headers: { "Authorization": `Bearer ${token}` },
-      });
-      if (res.ok) {
-        const data = await res.json();
-        setUsers(Array.isArray(data) ? data : []);
-      } else {
-        console.error("Erreur chargement utilisateurs");
-      }
+      const data = await getUsers(token, { page, ...currentFilters });
+      setUsers(data.data || []);
+      setCurrentPage(data.current_page || 1);
+      setLastPage(data.last_page || 1);
     } catch (error) {
-      console.error("Erreur réseau:", error);
+      console.error("Erreur chargement utilisateurs:", error);
     } finally {
       setLoading(false);
     }
   };
 
   useEffect(() => {
-    loadUsers();
+    loadUsers(1, filters);
   }, [token]);
+
+  const handleFilterChange = (newFilters) => {
+    setFilters(newFilters);
+    loadUsers(1, newFilters);
+  };
+
+  const handlePageChange = (page) => {
+    loadUsers(page, filters);
+  };
 
   // 2. Créer un utilisateur
   const handleCreateSubmit = async (e) => {
@@ -87,7 +95,7 @@ export default function AdminUsers() {
         toast.success("✅ Utilisateur créé avec succès !");
         setShowCreateModal(false);
         setNewUser({ nom: "", prenom: "", email: "", password: "", fonction: "", role_id: "1" });
-        loadUsers();
+        loadUsers(1, filters);
       } else {
         const error = await res.json();
         toast.error("❌ " + (error.message || "Impossible de créer l'utilisateur"));
@@ -116,7 +124,7 @@ export default function AdminUsers() {
         toast.success("✅ Informations mises à jour avec succès !");
         setShowEditModal(false);
         setUserToEdit(null);
-        loadUsers();
+        loadUsers(currentPage, filters);
       } else {
         const error = await res.json();
         toast.error("❌ " + (error.message || "Impossible de modifier l'utilisateur"));
@@ -138,7 +146,7 @@ export default function AdminUsers() {
 
       if (res.ok) {
         toast.success("✅ Utilisateur supprimé avec succès.");
-        loadUsers();
+        loadUsers(currentPage, filters);
       } else {
         const error = await res.json();
         toast.error("❌ " + (error.message || "Impossible de supprimer l'utilisateur"));
@@ -179,6 +187,19 @@ export default function AdminUsers() {
           + CRÉER UN COMPTE
         </button>
       </div>
+
+      <FilterBar
+        onFilterChange={handleFilterChange}
+        showPerson={false}
+        showStatus={true}
+        statusFieldName="role_id"
+        statusOptions={[
+          { value: '1', label: 'Employé' },
+          { value: '2', label: 'Responsable' },
+          { value: '3', label: 'Technicien' },
+          { value: '4', label: 'Administrateur' },
+        ]}
+      />
 
       <div className="bg-white rounded-xl shadow-sm border border-gray-200">
         <div className="overflow-x-auto">
@@ -243,6 +264,8 @@ export default function AdminUsers() {
           </table>
         </div>
       </div>
+
+      <Pagination currentPage={currentPage} lastPage={lastPage} onPageChange={handlePageChange} />
 
       {/* Modale Créer */}
       {showCreateModal && (

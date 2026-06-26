@@ -37,18 +37,50 @@ class TicketController extends Controller
         if ($user->role_id === 3) {
             // Technicien : voir ses tickets assignés ET charger les infos du demandeur (auteur)
             $query = Ticket::with('auteur')->where('technicien_id', $user->id);
+            if ($request->has('personne_id') && $request->personne_id) {
+                $query->whereIn('user_id', explode(',', $request->personne_id));
+            }
         } else {
             // Employé ou Responsable : voir leurs propres tickets ET charger les infos du technicien assigné
             $query = Ticket::with('technicien')->where('user_id', $user->id);
+            if ($request->has('personne_id') && $request->personne_id) {
+                $query->whereIn('technicien_id', explode(',', $request->personne_id));
+            }
         }
 
-        // Ajouter le filtre par statut si le paramètre est présent
-        if ($request->has('statut') && in_array($request->statut, ['Ouvert', 'En cours', 'Résolu', 'Fermé'])) {
-            $query->where('statut', $request->statut);
+        // Ajouter le filtre par statut multi
+        if ($request->has('statut') && $request->statut) {
+            $query->whereIn('statut', explode(',', $request->statut));
         }
 
-        // Trier par date de création (le plus récent en premier)
-        return $query->orderBy('created_at', 'desc')->get();
+        // Périodes prédéfinies
+        if ($request->has('periode') && $request->periode) {
+            $now = \Carbon\Carbon::now();
+            switch ($request->periode) {
+                case '7j': $query->where('created_at', '>=', $now->copy()->subDays(7)); break;
+                case '15j': $query->where('created_at', '>=', $now->copy()->subDays(15)); break;
+                case '30j': $query->where('created_at', '>=', $now->copy()->subDays(30)); break;
+                case '60j': $query->where('created_at', '>=', $now->copy()->subDays(60)); break;
+                case 'plus_1an': $query->where('created_at', '<', $now->copy()->subYear()); break;
+            }
+        }
+
+        if ($request->has('dates') && $request->dates) {
+            $datesArray = explode(',', $request->dates);
+            $query->whereIn(\Illuminate\Support\Facades\DB::raw('DATE(created_at)'), $datesArray);
+        }
+
+        if ($request->has('search') && $request->search) {
+            $search = $request->search;
+            $query->where(function($q) use ($search) {
+                $q->where('titre', 'like', "%{$search}%")
+                  ->orWhere('description', 'like', "%{$search}%")
+                  ->orWhere('categorie', 'like', "%{$search}%");
+            });
+        }
+
+        // Trier par date de création (le plus récent en premier) et paginer
+        return $query->orderBy('created_at', 'desc')->paginate(10);
     }
 
     /**

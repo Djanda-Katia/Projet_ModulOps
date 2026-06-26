@@ -3,12 +3,20 @@ import { useAuth } from "../context/AuthContext";
 import { getManagerDashboard } from "../services/api";
 import { useNavigate } from "react-router-dom";
 
+const PERIODS = [
+  { value: '7j', label: '7 jours' },
+  { value: '30j', label: '30 jours' },
+  { value: '90j', label: '3 mois' },
+  { value: 'tout', label: 'Tout' },
+];
+
 export default function ManagerDashboard() {
   const { token } = useAuth();
   const navigate = useNavigate();
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [signalements, setSignalements] = useState([]);
+  const [period, setPeriod] = useState('tout');
 
   useEffect(() => {
     const fetchDashboard = async () => {
@@ -22,16 +30,23 @@ export default function ManagerDashboard() {
         setLoading(false);
       }
     };
-
-    if (token) {
-      fetchDashboard();
-    }
+    if (token) fetchDashboard();
   }, [token]);
 
-  if (loading) return <div>Chargement...</div>;
+  if (loading) return <div className="text-center py-10 text-gray-400 animate-pulse">Chargement...</div>;
   if (!data) return <div>Erreur de chargement</div>;
 
   const { nb_conges_en_attente, conges_en_attente, suivi_equipe } = data;
+
+  // Filtre des congés en attente par période
+  const filterByPeriod = (items, dateField = 'created_at') => {
+    if (!items || period === 'tout') return items || [];
+    const days = period === '7j' ? 7 : period === '30j' ? 30 : 90;
+    const cutoff = new Date(); cutoff.setDate(cutoff.getDate() - days);
+    return items.filter(item => new Date(item[dateField]) >= cutoff);
+  };
+  const filteredConges = filterByPeriod(conges_en_attente, 'created_at');
+
 
   return (
     <div className="space-y-8">

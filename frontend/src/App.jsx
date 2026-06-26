@@ -72,26 +72,45 @@ function App() {
   return (
     <Router>
       {/* Le composant Toaster affiche les notifications en bas à droite */}
-      <Toaster 
+      <Toaster
         position="bottom-right"
+        gutter={10}
+        containerStyle={{ bottom: 24, right: 24 }}
         toastOptions={{
-          duration: 4000,
+          duration: 3500,
           style: {
-            background: '#333',
-            color: '#fff',
+            borderRadius: '14px',
+            padding: '14px 18px',
+            fontSize: '14px',
+            fontWeight: '600',
+            fontFamily: 'Inter, system-ui, sans-serif',
+            boxShadow: '0 10px 40px -8px rgba(0,0,0,0.20)',
+            maxWidth: '380px',
+            lineHeight: '1.4',
           },
           success: {
             duration: 3000,
+            icon: '✅',
             style: {
-              background: '#10b981',
-              color: '#fff',
+              background: '#f0fdf4',
+              color: '#166534',
+              border: '1px solid #bbf7d0',
             },
           },
           error: {
-            duration: 4000,
+            duration: 5000,
+            icon: '❌',
             style: {
-              background: '#ef4444',
-              color: '#fff',
+              background: '#fff1f2',
+              color: '#9f1239',
+              border: '1px solid #fecdd3',
+            },
+          },
+          loading: {
+            style: {
+              background: '#eff6ff',
+              color: '#1e40af',
+              border: '1px solid #bfdbfe',
             },
           },
         }}

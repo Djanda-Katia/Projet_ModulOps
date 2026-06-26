@@ -1,6 +1,8 @@
 import { useState, useEffect } from "react";
 import { useAuth } from "../context/AuthContext";
 import { getAllTasks, createTask, validateTask, cancelTask, getEmployes } from "../services/api";
+import FilterBar from "../components/FilterBar";
+import Pagination from "../components/Pagination";
 
 export default function ManagerTasks() {
   const { token } = useAuth();
@@ -16,36 +18,54 @@ export default function ManagerTasks() {
     employes_ids: [],
   });
 
-  // Charger toutes les tâches (pour le responsable) ET la liste des employés
-  useEffect(() => {
-    const fetchData = async () => {
-      try {
-        const [tasksData, employesData] = await Promise.all([
-          getAllTasks(token),     // <-- Remplace getMyTasks par getAllTasks
-          getEmployes(token),
-        ]);
-        setTasks(tasksData);
-        setEmployes(employesData);
-      } catch (error) {
-        console.error("Erreur chargement données:", error);
-      } finally {
-        setLoading(false);
-      }
-    };
+  const [currentPage, setCurrentPage] = useState(1);
+  const [lastPage, setLastPage] = useState(1);
+  const [filters, setFilters] = useState({});
 
-    if (token) {
-      fetchData();
+  const fetchTasks = async (page = 1, currentFilters = filters) => {
+    try {
+      setLoading(true);
+      const data = await getAllTasks(token, { page, ...currentFilters });
+      setTasks(data.data || []);
+      setCurrentPage(data.current_page || 1);
+      setLastPage(data.last_page || 1);
+    } catch (error) {
+      console.error("Erreur chargement tâches:", error);
+    } finally {
+      setLoading(false);
     }
-  }, []);
+  };
 
-  // Créer une tâche
+  const fetchEmployes = async () => {
+    try {
+      const data = await getEmployes(token);
+      setEmployes(data);
+    } catch (error) {
+      console.error("Erreur chargement employés:", error);
+    }
+  };
+
+  useEffect(() => {
+    if (token) {
+      fetchEmployes();
+      fetchTasks(1, filters);
+    }
+  }, [token]);
+
+  const handleFilterChange = (newFilters) => {
+    setFilters(newFilters);
+    fetchTasks(1, newFilters);
+  };
+
+  const handlePageChange = (page) => {
+    fetchTasks(page, filters);
+  };
+
   const handleCreate = async (e) => {
     e.preventDefault();
     try {
       await createTask(token, form);
-      // Recharger la liste après création
-      const updated = await getAllTasks(token);
-      setTasks(updated);
+      fetchTasks(1, filters);
       setShowModal(false);
       setForm({ titre: "", description: "", employes_ids: [] });
     } catch (error) {
@@ -53,21 +73,19 @@ export default function ManagerTasks() {
     }
   };
 
-  // Valider et fermer
   const handleValidateAndClose = async (id) => {
     try {
       await validateTask(token, id);
-      setTasks(prev => prev.map(t => t.id === id ? { ...t, statut: "Fermée" } : t));
+      fetchTasks(currentPage, filters);
     } catch (error) {
       console.error("Erreur validation:", error);
     }
   };
 
-  // Annuler et rouvrir
   const handleRejectAndReopen = async (id) => {
     try {
       await cancelTask(token, id);
-      setTasks(prev => prev.map(t => t.id === id ? { ...t, statut: "En cours" } : t));
+      fetchTasks(currentPage, filters);
     } catch (error) {
       console.error("Erreur annulation:", error);
     }
@@ -78,7 +96,7 @@ export default function ManagerTasks() {
   const pendingTasks = tasks.filter(t => t.statut === "Terminée");
   const closedTasks = tasks.filter(t => t.statut === "Fermée");
 
-  if (loading) return <div>Chargement...</div>;
+  
 
   return (
     <div className="space-y-8">
@@ -92,7 +110,18 @@ export default function ManagerTasks() {
         </button>
       </div>
 
-      {/* CONTENEUR 1 : TÂCHES ACTIVES */}
+      <FilterBar
+        onFilterChange={handleFilterChange}
+        showPerson={true}
+        personOptions={employes.map(e => ({ value: e.id, label: `${e.prenom} ${e.nom}` }))}
+        personPlaceholder="Choisir un employé"
+        statusOptions={[
+          { value: 'À faire', label: 'À faire' },
+          { value: 'En cours', label: 'En cours' },
+          { value: 'Terminée', label: 'Terminée' },
+          { value: 'Fermée', label: 'Fermée' }
+        ]}
+      />
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         {/* À faire */}
         <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
@@ -234,6 +263,8 @@ export default function ManagerTasks() {
           </div>
         </div>
       )}
+
+      <Pagination currentPage={currentPage} lastPage={lastPage} onPageChange={handlePageChange} />
 
       {/* MODALE CRÉER UNE TÂCHE */}
       {showModal && (

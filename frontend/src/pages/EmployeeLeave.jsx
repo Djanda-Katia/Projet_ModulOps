@@ -1,6 +1,10 @@
 import { useState, useEffect } from "react";
 import { useAuth } from "../context/AuthContext";
 import { getConges, soumettreConge, getDashboard, signalerCongesNonConfigures, annulerDemandeConge } from "../services/api";
+import FilterBar from "../components/FilterBar";
+import Pagination from "../components/Pagination";
+import ConfirmModal from "../components/ConfirmModal";
+import toast from "react-hot-toast";
 
 // Formate une date ISO en jj/mm/aaaa
 const formatDate = (iso) => {
@@ -23,6 +27,7 @@ const getTodayISO = () => {
 export default function EmployeeLeave() {
   const { token } = useAuth();
   const [showModal, setShowModal] = useState(false);
+  const [confirmConfig, setConfirmConfig] = useState({ isOpen: false, id: null });
   const [conges, setConges] = useState([]);
   const [loading, setLoading] = useState(true);
   const [dashData, setDashData] = useState(null);
@@ -41,26 +46,50 @@ export default function EmployeeLeave() {
   // Pour le type Annuel : période sélectionnée dans le select
   const [selectedPeriodeIdx, setSelectedPeriodeIdx] = useState("");
 
+  const [currentPage, setCurrentPage] = useState(1);
+  const [lastPage, setLastPage] = useState(1);
+  const [filters, setFilters] = useState({});
+
   // Fonction de chargement des données
-  const fetchData = async () => {
+  const fetchCongesData = async (page = 1, currentFilters = filters) => {
     try {
-      const [congesData, dash] = await Promise.all([
-        getConges(token),
-        getDashboard(token),
-      ]);
-      setConges(congesData);
-      setDashData(dash);
+      setLoading(true);
+      const congesData = await getConges(token, { page, ...currentFilters });
+      setConges(congesData.data || []);
+      setCurrentPage(congesData.current_page || 1);
+      setLastPage(congesData.last_page || 1);
     } catch (error) {
-      console.error("Erreur chargement données:", error);
+      console.error("Erreur chargement congés:", error);
     } finally {
       setLoading(false);
     }
   };
 
+  const fetchDashboardData = async () => {
+    try {
+      const dash = await getDashboard(token);
+      setDashData(dash);
+    } catch (error) {
+      console.error("Erreur chargement dashboard:", error);
+    }
+  };
+
   // Charger les données au démarrage
   useEffect(() => {
-    if (token) fetchData();
+    if (token) {
+      fetchDashboardData();
+      fetchCongesData(1, filters);
+    }
   }, [token]);
+
+  const handleFilterChange = (newFilters) => {
+    setFilters(newFilters);
+    fetchCongesData(1, newFilters);
+  };
+
+  const handlePageChange = (page) => {
+    fetchCongesData(page, filters);
+  };
 
   // Quand le type change, réinitialiser les dates et la période
   const handleTypeChange = (type) => {
@@ -85,8 +114,9 @@ export default function EmployeeLeave() {
     try {
       await signalerCongesNonConfigures(token);
       setSignalementEnvoyé(true);
+      toast.success("✅ Signalement envoyé à votre responsable.");
     } catch (error) {
-      alert("Erreur : " + error.message);
+      toast.error("❌ Erreur : " + error.message);
     } finally {
       setSignalementLoading(false);
     }
@@ -100,25 +130,26 @@ export default function EmployeeLeave() {
       setShowModal(false);
       setForm({ type_conge: "Annuel", date_debut: "", date_fin: "", motif: "" });
       setSelectedPeriodeIdx("");
-      fetchData(); // Rafraîchir les données
+      fetchCongesData(1, filters); // Rafraîchir les données
+      toast.success("✅ Demande soumise avec succès !");
     } catch (error) {
       console.error("Erreur soumission:", error);
-      alert("Erreur : " + error.message);
+      toast.error("❌ Erreur : " + error.message);
     }
   };
 
   // Annuler une demande
   const handleAnnulerDemande = async (id) => {
-    if (!window.confirm("Êtes-vous sûr de vouloir annuler cette demande ?")) return;
     try {
       await annulerDemandeConge(token, id);
-      fetchData(); // Rafraîchir
+      toast.success("✅ Demande annulée avec succès");
+      fetchCongesData(currentPage, filters); // Rafraîchir
     } catch (error) {
-      alert("Erreur lors de l'annulation : " + error.message);
+      toast.error("❌ Erreur lors de l'annulation : " + error.message);
     }
   };
 
-  if (loading) return <div>Chargement...</div>;
+  
 
   const periodes = dashData?.periode_conges_annuels ?? [];
   const soldeAnnuelTotal = dashData?.stats?.solde_annuel_total ?? 0;
@@ -207,6 +238,16 @@ export default function EmployeeLeave() {
 
       </div>
 
+      <FilterBar 
+        onFilterChange={handleFilterChange} 
+        showPerson={false}
+        statusOptions={[
+          { value: 'En attente', label: 'En attente' },
+          { value: 'Approuvée', label: 'Approuvée' },
+          { value: 'Rejetée', label: 'Rejetée' }
+        ]}
+      />
+
       {/* Tableau historique */}
       <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
         <div className="p-4 border-b border-gray-100 flex justify-between items-center">
@@ -252,7 +293,7 @@ export default function EmployeeLeave() {
                       <td className="px-6 py-4 text-right">
                         {(conge.statut === "En attente" || conge.statut === "Approuvée") && (
                           <button
-                            onClick={() => handleAnnulerDemande(conge.id)}
+                            onClick={() => setConfirmConfig({ isOpen: true, id: conge.id })}
                             className="bg-red-50 text-red-600 hover:bg-red-100 hover:text-red-700 px-3 py-1.5 rounded text-xs font-bold transition-colors"
                           >
                             Annuler ma demande
@@ -271,6 +312,12 @@ export default function EmployeeLeave() {
           </table>
         </div>
       </div>
+
+      <Pagination 
+        currentPage={currentPage} 
+        lastPage={lastPage} 
+        onPageChange={handlePageChange} 
+      />
 
       {/* ===== MODAL ===== */}
       {showModal && (
@@ -446,6 +493,17 @@ export default function EmployeeLeave() {
           </div>
         </div>
       )}
+
+      {/* ===== MODAL CONFIRMATION ===== */}
+      <ConfirmModal 
+        isOpen={confirmConfig.isOpen}
+        title="Annuler la demande ?"
+        message="Êtes-vous sûr de vouloir annuler cette demande de congé ? Cette action est irréversible."
+        onCancel={() => setConfirmConfig({ isOpen: false, id: null })}
+        onConfirm={() => handleAnnulerDemande(confirmConfig.id)}
+        isDanger={true}
+        confirmText="Annuler la demande"
+      />
     </div>
   );
 }

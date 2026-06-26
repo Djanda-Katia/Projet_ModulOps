@@ -16,13 +16,48 @@ class CongeController extends Controller
     /**
      * Liste des congés
      */
-    public function index()
+    public function index(Request $request)
     {
+        $query = DemandeConge::query();
+
         if (Auth::user()->role_id === 2) {
-            return DemandeConge::with('user')->orderBy('created_at', 'desc')->get();
+            $query->with('user');
+            if ($request->has('personne_id') && $request->personne_id) {
+                $query->whereIn('user_id', explode(',', $request->personne_id));
+            }
+        } else {
+            $query->where('user_id', Auth::id());
         }
 
-        return DemandeConge::where('user_id', Auth::id())->orderBy('created_at', 'desc')->get();
+        if ($request->has('statut') && $request->statut) {
+            $query->whereIn('statut', explode(',', $request->statut));
+        }
+
+        if ($request->has('periode') && $request->periode) {
+            $now = \Carbon\Carbon::now();
+            switch ($request->periode) {
+                case '7j': $query->where('created_at', '>=', $now->copy()->subDays(7)); break;
+                case '15j': $query->where('created_at', '>=', $now->copy()->subDays(15)); break;
+                case '30j': $query->where('created_at', '>=', $now->copy()->subDays(30)); break;
+                case '60j': $query->where('created_at', '>=', $now->copy()->subDays(60)); break;
+                case 'plus_1an': $query->where('created_at', '<', $now->copy()->subYear()); break;
+            }
+        }
+
+        if ($request->has('dates') && $request->dates) {
+            $datesArray = explode(',', $request->dates);
+            $query->whereIn(\Illuminate\Support\Facades\DB::raw('DATE(created_at)'), $datesArray);
+        }
+
+        if ($request->has('search') && $request->search) {
+            $search = $request->search;
+            $query->where(function($q) use ($search) {
+                $q->where('type_conge', 'like', "%{$search}%")
+                  ->orWhere('motif', 'like', "%{$search}%");
+            });
+        }
+
+        return $query->orderBy('created_at', 'desc')->paginate(10);
     }
 
     /**

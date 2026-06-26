@@ -2,10 +2,20 @@ import { useAuth } from "../context/AuthContext";
 import { useEffect, useState } from "react";
 import { getDashboard } from "../services/api";
 
+const PERIODS = [
+  { value: '7j', label: '7 jours' },
+  { value: '30j', label: '30 jours' },
+  { value: '90j', label: '3 mois' },
+  { value: 'tout', label: 'Tout' },
+];
+
+const API_BASE = import.meta.env.VITE_API_URL ?? "http://127.0.0.1:8000";
+
 export default function EmployeeDashboard() {
   const { user, token } = useAuth();
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [period, setPeriod] = useState('tout');
 
   useEffect(() => {
     const fetchDashboard = async () => {
@@ -18,17 +28,45 @@ export default function EmployeeDashboard() {
         setLoading(false);
       }
     };
-
-    if (token) {
-      fetchDashboard();
-    }
+    if (token) fetchDashboard();
   }, [token]);
 
-  if (loading) return <div>Chargement...</div>;
+  if (loading) return <div className="text-center py-10 text-gray-400 animate-pulse">Chargement...</div>;
   if (!data) return <div>Erreur de chargement</div>;
 
+  // Filtrer les tickets et congés selon la période
+  const filterByPeriod = (items, dateField = 'created_at') => {
+    if (!items || period === 'tout') return items || [];
+    const days = period === '7j' ? 7 : period === '30j' ? 30 : 90;
+    const cutoff = new Date();
+    cutoff.setDate(cutoff.getDate() - days);
+    return items.filter(item => new Date(item[dateField]) >= cutoff);
+  };
+
+  const filteredConges = filterByPeriod(data.conges, 'date_debut');
+  const filteredTickets = filterByPeriod(data.tickets);
+  const filteredTaches = filterByPeriod(data.taches);
+
+
   return (
-    <div className="space-y-8">
+    <div className="space-y-6">
+      {/* ── En-tête avec sélecteur de période ── */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div>
+          <h1 className="text-2xl font-bold text-gray-900">Tableau de bord</h1>
+          <p className="text-gray-500 text-sm">Vue d'ensemble de votre activité</p>
+        </div>
+        <div className="flex items-center gap-1 bg-white border border-gray-200 rounded-xl p-1 shadow-sm">
+          {PERIODS.map(p => (
+            <button key={p.value} onClick={() => setPeriod(p.value)}
+              className={`px-4 py-2 rounded-lg text-xs font-bold transition-all ${
+                period === p.value ? 'bg-blue-600 text-white shadow-sm' : 'text-gray-500 hover:text-gray-700 hover:bg-gray-50'
+              }`}
+            >{p.label}</button>
+          ))}
+        </div>
+      </div>
+
       {/* --- STAT CARDS --- */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
 
@@ -135,8 +173,8 @@ export default function EmployeeDashboard() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100 text-sm">
-                {data.conges && data.conges.length > 0 ? (
-                  data.conges.map((conge) => (
+                {filteredConges.length > 0 ? (
+                  filteredConges.map((conge) => (
                     <tr key={conge.id}>
                       <td className="px-4 py-3">{conge.type_conge}</td>
                       <td className="px-4 py-3 text-gray-500">
@@ -154,7 +192,7 @@ export default function EmployeeDashboard() {
                     </tr>
                   ))
                 ) : (
-                  <tr><td colSpan="3" className="px-4 py-3 text-center text-gray-500">Aucune demande</td></tr>
+                  <tr><td colSpan="3" className="px-4 py-3 text-center text-gray-500">Aucune demande sur cette période</td></tr>
                 )}
               </tbody>
             </table>
@@ -176,8 +214,8 @@ export default function EmployeeDashboard() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100 text-sm">
-                {data.tickets && data.tickets.length > 0 ? (
-                  data.tickets.map((ticket) => (
+                {filteredTickets.length > 0 ? (
+                  filteredTickets.map((ticket) => (
                     <tr key={ticket.id}>
                       <td className="px-4 py-3 font-semibold">{ticket.titre}</td>
                       <td className="px-4 py-3">
@@ -202,7 +240,7 @@ export default function EmployeeDashboard() {
                     </tr>
                   ))
                 ) : (
-                  <tr><td colSpan="3" className="px-4 py-3 text-center text-gray-500">Aucun ticket</td></tr>
+                  <tr><td colSpan="3" className="px-4 py-3 text-center text-gray-500">Aucun ticket sur cette période</td></tr>
                 )}
               </tbody>
             </table>
@@ -223,8 +261,8 @@ export default function EmployeeDashboard() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100 text-sm">
-                {data.taches && data.taches.length > 0 ? (
-                  data.taches.map((tache) => (
+                {filteredTaches.length > 0 ? (
+                  filteredTaches.map((tache) => (
                     <tr key={tache.id}>
                       <td className="px-4 py-3 font-semibold">{tache.titre}</td>
                       <td className="px-4 py-3">
@@ -240,7 +278,7 @@ export default function EmployeeDashboard() {
                     </tr>
                   ))
                 ) : (
-                  <tr><td colSpan="2" className="px-4 py-3 text-center text-gray-500">Aucune tâche</td></tr>
+                  <tr><td colSpan="2" className="px-4 py-3 text-center text-gray-500">Aucune tâche sur cette période</td></tr>
                 )}
               </tbody>
             </table>

@@ -67,10 +67,39 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::get('/toutes-taches', [TacheController::class, 'allTasks'])->middleware('role:2');
     });
 
-    Route::get('/notifications', function () {
-        return \App\Models\Notification::where('destinataire_id', Auth::id())
-            ->orderBy('created_at', 'desc')
-            ->get();
+    Route::get('/notifications', function (Request $request) {
+        $query = \App\Models\Notification::where('destinataire_id', Auth::id());
+
+        if ($request->has('statut') && $request->statut !== '') {
+            $statuts = explode(',', $request->statut);
+            if (in_array('Lu', $statuts) || in_array('lu', $statuts)) {
+                $query->where('lu', true);
+            } elseif (in_array('Non lu', $statuts) || in_array('non_lu', $statuts)) {
+                $query->where('lu', false);
+            }
+        }
+
+        if ($request->has('dates') && $request->dates) {
+            $datesArray = explode(',', $request->dates);
+            $query->whereIn(\Illuminate\Support\Facades\DB::raw('DATE(created_at)'), $datesArray);
+        }
+
+        if ($request->has('periode') && $request->periode) {
+            $now = \Carbon\Carbon::now();
+            switch ($request->periode) {
+                case '7j': $query->where('created_at', '>=', $now->copy()->subDays(7)); break;
+                case '15j': $query->where('created_at', '>=', $now->copy()->subDays(15)); break;
+                case '30j': $query->where('created_at', '>=', $now->copy()->subDays(30)); break;
+                case '60j': $query->where('created_at', '>=', $now->copy()->subDays(60)); break;
+                case 'plus_1an': $query->where('created_at', '<', $now->copy()->subYear()); break;
+            }
+        }
+
+        if ($request->has('search') && $request->search) {
+            $query->where('message', 'like', '%' . $request->search . '%');
+        }
+
+        return $query->orderBy('created_at', 'desc')->paginate(10);
     });
     Route::patch('/notifications/{id}/lu', function (int $id) {
         \App\Models\Notification::where('id', $id)

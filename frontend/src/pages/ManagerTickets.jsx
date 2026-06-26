@@ -1,16 +1,22 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect } from "react";
 import { useAuth } from "../context/AuthContext";
 import { getTickets, createTicket, getTechniciens } from "../services/api";
 import TicketDetailModal from "../components/TicketDetailModal";
+import FilterBar from "../components/FilterBar";
+import Pagination from "../components/Pagination";
 
 export default function ManagerTickets() {
   const { token } = useAuth();
-  const [statusFilter, setStatusFilter] = useState("all");
   const [showModal, setShowModal] = useState(false);
   const [tickets, setTickets] = useState([]);
   const [techniciens, setTechniciens] = useState([]);
   const [loading, setLoading] = useState(true);
   const [selectedTicketId, setSelectedTicketId] = useState(null);
+
+  // Pagination et filtres
+  const [currentPage, setCurrentPage] = useState(1);
+  const [lastPage, setLastPage] = useState(1);
+  const [filters, setFilters] = useState({});
 
   // Formulaire de création
   const [form, setForm] = useState({
@@ -20,15 +26,21 @@ export default function ManagerTickets() {
     technicien_id: "",
   });
 
-  // 3. Charger les tickets au démarrage
-  const fetchData = async () => {
+  const [activeTab, setActiveTab] = useState('actifs'); // 'actifs' ou 'historique'
+
+  const fetchTickets = async (page = 1, currentFilters = filters, tab = activeTab) => {
     try {
-      const [ticketsData, techniciensData] = await Promise.all([
-        getTickets(token),
-        getTechniciens(token),
-      ]);
-      setTickets(ticketsData);
-      setTechniciens(techniciensData);
+      setLoading(true);
+      
+      let finalFilters = { ...currentFilters };
+      if (!finalFilters.statut) {
+        finalFilters.statut = tab === 'actifs' ? 'Ouvert,En cours' : 'Résolu,Fermé';
+      }
+
+      const data = await getTickets(token, { page, ...finalFilters });
+      setTickets(data.data || []);
+      setCurrentPage(data.current_page || 1);
+      setLastPage(data.last_page || 1);
     } catch (error) {
       console.error("Erreur chargement tickets:", error);
     } finally {
@@ -36,17 +48,37 @@ export default function ManagerTickets() {
     }
   };
 
+  const fetchTechniciens = async () => {
+    try {
+      const data = await getTechniciens(token);
+      setTechniciens(data);
+    } catch (error) {
+      console.error("Erreur chargement techniciens:", error);
+    }
+  };
+
   useEffect(() => {
-    if (token) fetchData();
-  }, []);
+    if (token) {
+      fetchTechniciens();
+      fetchTickets(1, filters, activeTab);
+    }
+  }, [token, activeTab]);
+
+  const handleFilterChange = (newFilters) => {
+    setFilters(newFilters);
+    fetchTickets(1, newFilters, activeTab);
+  };
+
+  const handlePageChange = (page) => {
+    fetchTickets(page, filters, activeTab);
+  };
 
   // 2. Soumettre un nouveau ticket (mise à jour locale sans rechargement)
   const handleSubmit = async (e) => {
     e.preventDefault();
     try {
-      const newTicket = await createTicket(token, form);
-      // Ajout du nouveau ticket au tableau local (sans recharger)
-      setTickets(prev => [...prev, newTicket.data]);
+      await createTicket(token, form);
+      fetchTickets(1, filters, activeTab);
       setShowModal(false);
       setForm({
         titre: "",
@@ -59,78 +91,52 @@ export default function ManagerTickets() {
     }
   };
 
-  // 1. Statistiques recalculées automatiquement à chaque changement de tickets
-  const stats = useMemo(() => {
-    return {
-      ouvert: tickets.filter(t => t.statut === "Ouvert").length,
-      enCours: tickets.filter(t => t.statut === "En cours").length,
-      ferme: tickets.filter(t => t.statut === "Fermé" || t.statut === "Résolu").length,
-    };
-  }, [tickets]); // <-- Se recalcule à chaque modification de tickets
-
-  // Filtrer les tickets selon le statut
-  const filtered = statusFilter === "all" 
-    ? tickets 
-    : tickets.filter(t => t.statut === statusFilter);
-
-  if (loading) return <div>Chargement...</div>;
-
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-end">
-        <p className="text-gray-500 text-sm">Créez et suivez vos demandes de support technique.</p>
+        <div>
+          <h1 className="text-2xl font-bold text-gray-900">Mes Tickets (Manager)</h1>
+          <p className="text-gray-500 text-sm">Créez et suivez vos demandes de support technique.</p>
+        </div>
         <button
           onClick={() => setShowModal(true)}
           className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-lg text-sm font-bold flex items-center gap-2 shadow-md transition-all"
         >
           <span className="material-symbols-outlined">add</span>
-          + CRÉER UN TICKET
+          Créer un ticket
         </button>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200 flex items-start justify-between">
-          <div>
-            <p className="text-sm text-gray-500 mb-1">Ouverts</p>
-            <h3 className="text-3xl font-bold text-blue-600">{stats.ouvert}</h3>
-          </div>
-          <div className="p-3 bg-blue-100 rounded-lg text-blue-600">
-            <span className="material-symbols-outlined" style={{ fontVariationSettings: "'FILL' 1" }}>folder_open</span>
-          </div>
-        </div>
-        <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200 flex items-start justify-between">
-          <div>
-            <p className="text-sm text-gray-500 mb-1">En cours</p>
-            <h3 className="text-3xl font-bold text-amber-600">{stats.enCours}</h3>
-          </div>
-          <div className="p-3 bg-amber-100 rounded-lg text-amber-600">
-            <span className="material-symbols-outlined" style={{ fontVariationSettings: "'FILL' 1" }}>sync</span>
-          </div>
-        </div>
-        <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200 flex items-start justify-between">
-          <div>
-            <p className="text-sm text-gray-500 mb-1">Fermés</p>
-            <h3 className="text-3xl font-bold text-gray-500">{stats.ferme}</h3>
-          </div>
-          <div className="p-3 bg-gray-100 rounded-lg text-gray-500">
-            <span className="material-symbols-outlined" style={{ fontVariationSettings: "'FILL' 1" }}>check_circle</span>
-          </div>
-        </div>
+      {/* ── Onglets de classification ── */}
+      <div className="flex items-center gap-6 border-b border-gray-200">
+        <button
+          onClick={() => { setFilters({}); setActiveTab('actifs'); }}
+          className={`pb-3 text-sm font-bold transition-all border-b-2 ${
+            activeTab === 'actifs' ? 'border-blue-600 text-blue-700' : 'border-transparent text-gray-500 hover:text-gray-700'
+          }`}
+        >
+          Demandes en cours
+        </button>
+        <button
+          onClick={() => { setFilters({}); setActiveTab('historique'); }}
+          className={`pb-3 text-sm font-bold transition-all border-b-2 ${
+            activeTab === 'historique' ? 'border-blue-600 text-blue-700' : 'border-transparent text-gray-500 hover:text-gray-700'
+          }`}
+        >
+          Historique (Résolus & Fermés)
+        </button>
       </div>
 
-      <div className="flex justify-end">
-        <select
-          value={statusFilter}
-          onChange={(e) => setStatusFilter(e.target.value)}
-          className="bg-white border border-gray-200 rounded-lg px-4 py-2 text-sm outline-none cursor-pointer"
-        >
-          <option value="all">Tous les statuts</option>
-          <option value="Ouvert">Ouvert</option>
-          <option value="En cours">En cours</option>
-          <option value="Résolu">Résolu</option>
-          <option value="Fermé">Fermé</option>
-        </select>
-      </div>
+      <FilterBar 
+        onFilterChange={handleFilterChange} 
+        showPerson={true}
+        personOptions={techniciens.map(t => ({ value: t.id, label: `${t.prenom} ${t.nom}` }))}
+        personPlaceholder="Choisir un technicien"
+        statusOptions={activeTab === 'actifs' 
+          ? [{ value: 'Ouvert', label: 'Ouvert' }, { value: 'En cours', label: 'En cours' }]
+          : [{ value: 'Résolu', label: 'Résolu' }, { value: 'Fermé', label: 'Fermé' }]
+        }
+      />
 
       <div className="bg-white rounded-xl shadow-sm border border-gray-200">
         <div className="overflow-x-auto">
@@ -147,8 +153,8 @@ export default function ManagerTickets() {
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100">
-              {filtered.length > 0 ? (
-                filtered.map((ticket) => (
+              {tickets.length > 0 ? (
+                tickets.map((ticket) => (
                   <tr key={ticket.id} className="hover:bg-gray-50">
                     <td className="px-6 py-3 font-semibold">{ticket.titre}</td>
                     <td className="px-6 py-3 text-gray-500">{ticket.categorie}</td>
@@ -207,6 +213,12 @@ export default function ManagerTickets() {
           </table>
         </div>
       </div>
+
+      <Pagination 
+        currentPage={currentPage} 
+        lastPage={lastPage} 
+        onPageChange={handlePageChange} 
+      />
 
       {showModal && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
@@ -282,7 +294,7 @@ export default function ManagerTickets() {
           ticketId={selectedTicketId}
           role={2}
           onClose={() => setSelectedTicketId(null)}
-          onUpdated={() => fetchData()}
+          onUpdated={() => fetchTickets(currentPage, filters)}
         />
       )}
     </div>

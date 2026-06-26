@@ -211,20 +211,82 @@ class TacheController extends Controller
     /**
      * Récupérer les tâches de l'utilisateur connecté via la table pivot
      */
-    public function mesTaches()
+    public function mesTaches(Request $request)
     {
         $tachesIds = AffectationTache::where('utilisateur_id', Auth::id())
             ->pluck('tache_id');
 
-        return Tache::whereIn('id', $tachesIds)
-            ->orderBy('created_at', 'desc')
-            ->get();
+        $query = Tache::whereIn('id', $tachesIds);
+
+        if ($request->has('statut') && $request->statut) {
+            $query->whereIn('statut', explode(',', $request->statut));
+        }
+
+        if ($request->has('periode') && $request->periode) {
+            $now = \Carbon\Carbon::now();
+            switch ($request->periode) {
+                case '7j': $query->where('created_at', '>=', $now->copy()->subDays(7)); break;
+                case '15j': $query->where('created_at', '>=', $now->copy()->subDays(15)); break;
+                case '30j': $query->where('created_at', '>=', $now->copy()->subDays(30)); break;
+                case '60j': $query->where('created_at', '>=', $now->copy()->subDays(60)); break;
+                case 'plus_1an': $query->where('created_at', '<', $now->copy()->subYear()); break;
+            }
+        }
+
+        if ($request->has('dates') && $request->dates) {
+            $datesArray = explode(',', $request->dates);
+            $query->whereIn(\Illuminate\Support\Facades\DB::raw('DATE(created_at)'), $datesArray);
+        }
+
+        if ($request->has('search') && $request->search) {
+            $search = $request->search;
+            $query->where(function($q) use ($search) {
+                $q->where('titre', 'like', "%{$search}%")
+                  ->orWhere('description', 'like', "%{$search}%");
+            });
+        }
+
+        return $query->orderBy('created_at', 'desc')->paginate(10);
     }
-    public function allTasks()
-{
-    // Récupère toutes les tâches avec leurs employés assignés
-    return Tache::with('employes')
-        ->orderBy('created_at', 'desc')
-        ->get();
-}
+    public function allTasks(Request $request)
+    {
+        $query = Tache::with('employes');
+
+        if ($request->has('personne_id') && $request->personne_id) {
+            $personnesIds = explode(',', $request->personne_id);
+            $query->whereHas('employes', function($q) use ($personnesIds) {
+                $q->whereIn('users.id', $personnesIds);
+            });
+        }
+
+        if ($request->has('statut') && $request->statut) {
+            $query->whereIn('statut', explode(',', $request->statut));
+        }
+
+        if ($request->has('periode') && $request->periode) {
+            $now = \Carbon\Carbon::now();
+            switch ($request->periode) {
+                case '7j': $query->where('created_at', '>=', $now->copy()->subDays(7)); break;
+                case '15j': $query->where('created_at', '>=', $now->copy()->subDays(15)); break;
+                case '30j': $query->where('created_at', '>=', $now->copy()->subDays(30)); break;
+                case '60j': $query->where('created_at', '>=', $now->copy()->subDays(60)); break;
+                case 'plus_1an': $query->where('created_at', '<', $now->copy()->subYear()); break;
+            }
+        }
+
+        if ($request->has('dates') && $request->dates) {
+            $datesArray = explode(',', $request->dates);
+            $query->whereIn(\Illuminate\Support\Facades\DB::raw('DATE(created_at)'), $datesArray);
+        }
+
+        if ($request->has('search') && $request->search) {
+            $search = $request->search;
+            $query->where(function($q) use ($search) {
+                $q->where('titre', 'like', "%{$search}%")
+                  ->orWhere('description', 'like', "%{$search}%");
+            });
+        }
+
+        return $query->orderBy('created_at', 'desc')->paginate(10);
+    }
 }
