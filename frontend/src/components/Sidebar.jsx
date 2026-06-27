@@ -3,7 +3,7 @@ import { useAuth } from "../context/AuthContext";
 import logo from "../assets/logo.svg";
 
 export default function Sidebar({ isOpen, toggleSidebar }) {
-  const { user, logout } = useAuth();
+  const { user, logout, unreadCount } = useAuth();
   const navigate = useNavigate();
 
   if (!user) return null;
@@ -46,8 +46,11 @@ export default function Sidebar({ isOpen, toggleSidebar }) {
             <NavLink to="/employee-tasks" onClick={toggleSidebar} className={({isActive}) => `flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${isActive ? "bg-blue-500" : "hover:bg-blue-800"}`}>
               <span className="material-symbols-outlined">assignment</span> Mes Tâches
             </NavLink>
-            <NavLink to="/employee-notifications" onClick={toggleSidebar} className={({isActive}) => `flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${isActive ? "bg-blue-500" : "hover:bg-blue-800"}`}>
-              <span className="material-symbols-outlined">notifications</span> Notifications
+            <NavLink to="/employee-notifications" onClick={toggleSidebar} className={({isActive}) => `flex items-center gap-3 px-4 py-3 rounded-lg transition-colors justify-between ${isActive ? "bg-blue-500" : "hover:bg-blue-800"}`}>
+              <div className="flex items-center gap-3">
+                <span className="material-symbols-outlined">notifications</span> Notifications
+              </div>
+              {unreadCount > 0 && <span className="bg-red-500 text-white text-[10px] font-bold px-2 py-0.5 rounded-full">{unreadCount}</span>}
             </NavLink>
           </>
         )}
@@ -61,8 +64,11 @@ export default function Sidebar({ isOpen, toggleSidebar }) {
             <NavLink to="/technician-tickets" onClick={toggleSidebar} className={({isActive}) => `flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${isActive ? "bg-blue-500" : "hover:bg-blue-800"}`}>
               <span className="material-symbols-outlined">confirmation_number</span> Mes Tickets
             </NavLink>
-            <NavLink to="/technician-notifications" onClick={toggleSidebar} className={({isActive}) => `flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${isActive ? "bg-blue-500" : "hover:bg-blue-800"}`}>
-              <span className="material-symbols-outlined">notifications</span> Notifications
+            <NavLink to="/technician-notifications" onClick={toggleSidebar} className={({isActive}) => `flex items-center gap-3 px-4 py-3 rounded-lg transition-colors justify-between ${isActive ? "bg-blue-500" : "hover:bg-blue-800"}`}>
+              <div className="flex items-center gap-3">
+                <span className="material-symbols-outlined">notifications</span> Notifications
+              </div>
+              {unreadCount > 0 && <span className="bg-red-500 text-white text-[10px] font-bold px-2 py-0.5 rounded-full">{unreadCount}</span>}
             </NavLink>
           </>
         )}
@@ -82,8 +88,11 @@ export default function Sidebar({ isOpen, toggleSidebar }) {
             <NavLink to="/manager-tasks" onClick={toggleSidebar} className={({isActive}) => `flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${isActive ? "bg-blue-500" : "hover:bg-blue-800"}`}>
               <span className="material-symbols-outlined">assignment</span> Gestion des Tâches
             </NavLink>
-            <NavLink to="/manager-notifications" onClick={toggleSidebar} className={({isActive}) => `flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${isActive ? "bg-blue-500" : "hover:bg-blue-800"}`}>
-              <span className="material-symbols-outlined">notifications</span> Notifications
+            <NavLink to="/manager-notifications" onClick={toggleSidebar} className={({isActive}) => `flex items-center gap-3 px-4 py-3 rounded-lg transition-colors justify-between ${isActive ? "bg-blue-500" : "hover:bg-blue-800"}`}>
+              <div className="flex items-center gap-3">
+                <span className="material-symbols-outlined">notifications</span> Notifications
+              </div>
+              {unreadCount > 0 && <span className="bg-red-500 text-white text-[10px] font-bold px-2 py-0.5 rounded-full">{unreadCount}</span>}
             </NavLink>
           </>
         )}
@@ -97,8 +106,11 @@ export default function Sidebar({ isOpen, toggleSidebar }) {
             <NavLink to="/admin-audit" onClick={toggleSidebar} className={({isActive}) => `flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${isActive ? "bg-blue-500" : "hover:bg-blue-800"}`}>
               <span className="material-symbols-outlined">history</span> Journal d'Audit
             </NavLink>
-            <NavLink to="/admin-notifications" onClick={toggleSidebar} className={({isActive}) => `flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${isActive ? "bg-blue-500" : "hover:bg-blue-800"}`}>
-              <span className="material-symbols-outlined">notifications</span> Notifications
+            <NavLink to="/admin-notifications" onClick={toggleSidebar} className={({isActive}) => `flex items-center gap-3 px-4 py-3 rounded-lg transition-colors justify-between ${isActive ? "bg-blue-500" : "hover:bg-blue-800"}`}>
+              <div className="flex items-center gap-3">
+                <span className="material-symbols-outlined">notifications</span> Notifications
+              </div>
+              {unreadCount > 0 && <span className="bg-red-500 text-white text-[10px] font-bold px-2 py-0.5 rounded-full">{unreadCount}</span>}
             </NavLink>
           </>
         )}

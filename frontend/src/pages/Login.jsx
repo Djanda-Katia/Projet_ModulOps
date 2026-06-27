@@ -40,7 +40,7 @@ const handleSubmit = async (e) => {
     }
 
     // Stockage du token et de l'utilisateur
-    login(result.user, result.access_token);
+    login(result.user, result.access_token, form.remember);
 
     //  REDIRECTION DYNAMIQUE SELON LE RÔLE
     const role_id = result.user.role_id;

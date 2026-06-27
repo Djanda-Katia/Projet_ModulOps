@@ -19,7 +19,7 @@ export default function FilterBar({
 
   // Un seul état — chaque changement applique immédiatement
   const [filters, setFilters] = useState({
-    dates: [], periode: '', statuts: [], personne_ids: [], search: ''
+    dates: [], statuts: [], personne_ids: [], search: ''
   });
 
   const ref = useRef(null);
@@ -40,14 +40,12 @@ export default function FilterBar({
     clean[statusFieldName] = newFilters.statuts.join(',');
     clean.personne_id = newFilters.personne_ids.join(',');
     clean.search = newFilters.search;
-    clean.periode = newFilters.periode;
-    if (newFilters.periode) {
-      clean.dates = '';
-    } else if (newFilters.dates.length > 0) {
+    if (newFilters.dates.length > 0) {
       clean.dates = newFilters.dates.map(d => d?.format ? d.format('YYYY-MM-DD') : d).join(',');
     } else {
       clean.dates = '';
     }
+    clean.periode = ''; // Override removed periode
     onFilterChange(clean);
   };
 
@@ -74,7 +72,7 @@ export default function FilterBar({
   };
 
   const handleClear = () => {
-    const empty = { dates: [], periode: '', statuts: [], personne_ids: [], search: '' };
+    const empty = { dates: [], statuts: [], personne_ids: [], search: '' };
     setFilters(empty);
     emit(empty);
     setOpen(false);
@@ -83,7 +81,6 @@ export default function FilterBar({
   // Badge = total filtres actifs
   const activeCount =
     (filters.dates.length > 0 ? 1 : 0) +
-    (filters.periode ? 1 : 0) +
     filters.statuts.length +
     filters.personne_ids.length +
     (filters.search ? 1 : 0);
@@ -100,19 +97,17 @@ export default function FilterBar({
   });
   if (filters.search)
     chips.push({ key: 'search', label: `"${filters.search}"`, onRemove: () => update('search', '') });
-  if (filters.periode)
-    chips.push({ key: 'periode', label: PERIODE_LABELS[filters.periode], onRemove: () => update('periode', '') });
-  else if (filters.dates.length > 0)
+  if (filters.dates.length > 0)
     chips.push({
       key: 'dates',
-      label: filters.dates.length === 1
-        ? (filters.dates[0]?.format ? filters.dates[0].format('DD/MM/YYYY') : filters.dates[0])
-        : `${filters.dates.length} dates`,
+      label: filters.dates.length === 2
+        ? `${filters.dates[0]?.format ? filters.dates[0].format('DD/MM/YYYY') : filters.dates[0]} - ${filters.dates[1]?.format ? filters.dates[1].format('DD/MM/YYYY') : filters.dates[1]}`
+        : (filters.dates[0]?.format ? filters.dates[0].format('DD/MM/YYYY') : filters.dates[0]),
       onRemove: () => update('dates', [])
     });
 
   return (
-    <div className="flex items-center gap-2 flex-wrap mb-4" ref={ref}>
+    <div className="flex items-center justify-end gap-2 flex-wrap mb-4" ref={ref}>
       <div className="relative">
 
         {/* ── Bouton principal ── */}
@@ -141,7 +136,7 @@ export default function FilterBar({
 
         {/* ── Panneau déroulant ── */}
         {open && (
-          <div className="absolute left-0 top-full mt-2 z-50 bg-white border border-gray-100 rounded-2xl shadow-[0_16px_48px_-8px_rgba(0,0,0,0.18)] p-5 w-[390px] space-y-5">
+          <div className="absolute right-0 top-full mt-2 z-50 bg-white border border-gray-100 rounded-2xl shadow-[0_16px_48px_-8px_rgba(0,0,0,0.18)] p-5 w-[390px] space-y-5">
 
             <div className="flex items-center justify-between pb-3 border-b border-gray-100">
               <span className="text-sm font-black text-gray-800">Filtres avancés</span>
@@ -171,34 +166,16 @@ export default function FilterBar({
 
             {/* Période */}
             {showDate && (
-              <div className="space-y-3">
-                <div>
-                  <label className="block text-xs font-bold text-gray-500 mb-1.5 uppercase tracking-wider">Période</label>
-                  <select
-                    value={filters.periode}
-                    onChange={e => update('periode', e.target.value)}
-                    className="w-full bg-gray-50 border border-gray-200 rounded-xl px-3 py-2.5 text-sm font-medium focus:ring-2 focus:ring-blue-500 outline-none cursor-pointer"
-                  >
-                    <option value="">Toute la période</option>
-                    <option value="7j">7 derniers jours</option>
-                    <option value="15j">15 derniers jours</option>
-                    <option value="30j">30 derniers jours</option>
-                    <option value="60j">60 derniers jours</option>
-                    <option value="plus_1an">Il y a plus d'un an</option>
-                  </select>
-                </div>
-                {!filters.periode && (
-                  <div>
-                    <label className="block text-xs font-bold text-gray-500 mb-1.5 uppercase tracking-wider">Dates spécifiques</label>
-                    <DatePickerComponent
-                      multiple value={filters.dates}
-                      onChange={d => update('dates', d || [])}
-                      format="DD/MM/YYYY" placeholder="Sélectionner des dates..."
-                      containerClassName="w-full"
-                      inputClass="w-full bg-gray-50 border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:ring-2 focus:ring-blue-500 outline-none cursor-pointer"
-                    />
-                  </div>
-                )}
+              <div>
+                <label className="block text-xs font-bold text-gray-500 mb-1.5 uppercase tracking-wider">Filtrer par date</label>
+                <DatePickerComponent
+                  range
+                  value={filters.dates}
+                  onChange={d => update('dates', d || [])}
+                  format="DD/MM/YYYY" placeholder="Date de début - Date de fin"
+                  containerClassName="w-full"
+                  inputClass="w-full bg-gray-50 border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:ring-2 focus:ring-blue-500 outline-none cursor-pointer"
+                />
               </div>
             )}
 

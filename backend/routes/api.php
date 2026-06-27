@@ -67,6 +67,13 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::get('/toutes-taches', [TacheController::class, 'allTasks'])->middleware('role:2');
     });
 
+    Route::get('/notifications/unread-count', function () {
+        $count = \App\Models\Notification::where('destinataire_id', Auth::id())
+            ->where('lu', false)
+            ->count();
+        return response()->json(['count' => $count]);
+    });
+
     Route::get('/notifications', function (Request $request) {
         $query = \App\Models\Notification::where('destinataire_id', Auth::id());
 
@@ -77,6 +84,15 @@ Route::middleware('auth:sanctum')->group(function () {
             } elseif (in_array('Non lu', $statuts) || in_array('non_lu', $statuts)) {
                 $query->where('lu', false);
             }
+        }
+
+        if ($request->has('type') && $request->type) {
+            $types = explode(',', $request->type);
+            $query->where(function($q) use ($types) {
+                foreach ($types as $type) {
+                    $q->orWhere('type', 'like', $type . '%');
+                }
+            });
         }
 
         if ($request->has('dates') && $request->dates) {
@@ -134,6 +150,7 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::get('/admin/users', [AdminController::class, 'index']);
         Route::post('/admin/users', [AdminController::class, 'store']);
         Route::patch('/admin/users/{id}/role', [AdminController::class, 'modifierRole']);
+        Route::get('/admin/audit', [AdminController::class, 'getAudits']);
         Route::get('/admin/audit/export', [AdminController::class, 'exporterAudit']);
         Route::delete('/admin/users/{id}', [AdminController::class, 'destroy']);
     });

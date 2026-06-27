@@ -29,6 +29,24 @@ class CongeController extends Controller
             $query->where('user_id', Auth::id());
         }
 
+        if ($request->has('classification') && $request->classification) {
+            $today = \Carbon\Carbon::today()->format('Y-m-d');
+            if ($request->classification === 'actifs') {
+                $query->where(function ($q) use ($today) {
+                    $q->where('statut', 'En attente')
+                      ->orWhere(function ($q2) use ($today) {
+                          $q2->where('statut', 'Approuvée')
+                             ->where('date_fin', '>=', $today);
+                      });
+                });
+            } elseif ($request->classification === 'historique') {
+                $query->where('statut', 'Approuvée')
+                      ->where('date_fin', '<', $today);
+            } elseif ($request->classification === 'rejetes') {
+                $query->whereIn('statut', ['Rejetée', 'Annulée']);
+            }
+        }
+        
         if ($request->has('statut') && $request->statut) {
             $query->whereIn('statut', explode(',', $request->statut));
         }
@@ -46,7 +64,11 @@ class CongeController extends Controller
 
         if ($request->has('dates') && $request->dates) {
             $datesArray = explode(',', $request->dates);
-            $query->whereIn(\Illuminate\Support\Facades\DB::raw('DATE(created_at)'), $datesArray);
+            if (count($datesArray) === 2) {
+                $query->whereBetween('created_at', [$datesArray[0].' 00:00:00', $datesArray[1].' 23:59:59']);
+            } else {
+                $query->whereIn(\Illuminate\Support\Facades\DB::raw('DATE(created_at)'), $datesArray);
+            }
         }
 
         if ($request->has('search') && $request->search) {
@@ -372,36 +394,49 @@ class CongeController extends Controller
     public function annulerDemande(int $id)
     {
         $conge = DemandeConge::findOrFail($id);
-        
-        // Seul le propriétaire peut annuler
-        if (Auth::id() !== $conge->user_id) {
+        $employe = Auth::user();
+
+        // Seul le propriétaire peut annuler (ou un responsable rôle 2)
+        if (Auth::id() !== $conge->user_id && $employe->role_id !== 2) {
             return response()->json(['message' => 'Action non autorisée.'], 403);
         }
 
         if (!in_array($conge->statut, ['En attente', 'Approuvée'])) {
-            return response()->json(['message' => 'Impossible d\'annuler cette demande.'], 422);
+            return response()->json(['message' => 'Impossible d\'annuler cette demande (statut : ' . $conge->statut . ').'], 422);
         }
 
-        // Si la demande était déjà approuvée, on rembourse le solde
+        // Blocage si le congé a déjà commencé
+        $aujourdhui = new \DateTime('now', new \DateTimeZone('Africa/Douala'));
+        $aujourdhui->setTime(0, 0, 0);
+        $dateDebut = new \DateTime($conge->date_debut);
+        $dateDebut->setTime(0, 0, 0);
+
+        if ($dateDebut <= $aujourdhui) {
+            return response()->json([
+                'message' => "❌ Impossible d'annuler ce congé : le " . $dateDebut->format('d/m/Y') . " est déjà arrivé. Contactez votre responsable."
+            ], 422);
+        }
+
+        // Si la demande était déjà approuvée et annuelle, on rembourse le solde
         if ($conge->statut === 'Approuvée' && $conge->type_conge === 'Annuel') {
             $debut = new \DateTime($conge->date_debut);
             $fin   = new \DateTime($conge->date_fin);
             $jours = $debut->diff($fin)->days + 1;
 
-            $employe = $conge->user;
-            $employe->solde_conge += $jours;
-            $employe->save();
+            $proprietaire = $conge->user;
+            $proprietaire->solde_conge += $jours;
+            $proprietaire->save();
         }
 
-        $conge->delete();
+        // Mettre le statut à 'Annulée' au lieu de supprimer
+        $conge->update(['statut' => 'Annulée']);
 
-        $employe = Auth::user();
         $responsables = User::where('role_id', 2)->get();
         foreach ($responsables as $responsable) {
             Notification::create([
                 'destinataire_id' => $responsable->id,
                 'type'            => 'conge_annule',
-                'message'         => "❌ {$employe->prenom} {$employe->nom} a annulé sa demande de congé {$conge->type_conge}.",
+                'message'         => "❌ {$conge->user->prenom} {$conge->user->nom} a annulé sa demande de congé {$conge->type_conge} (du {$conge->date_debut} au {$conge->date_fin}).",
                 'lu'              => false
             ]);
         }

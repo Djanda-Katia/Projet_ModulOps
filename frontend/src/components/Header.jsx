@@ -31,13 +31,14 @@ export default function Header({ toggleSidebar }) {
       <div className="flex items-center gap-6">
         <Link
           to={getNotificationsRoute()}
-          className="relative p-2 text-gray-500 hover:bg-gray-50 rounded-full transition-colors"
+          className="relative p-2.5 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-xl transition-all shadow-sm border border-transparent hover:border-blue-100 group"
+          title="Voir les notifications"
         >
-          <span className="material-symbols-outlined">notifications</span>
+          <span className="material-symbols-outlined text-[26px] group-hover:animate-wiggle" style={{ fontVariationSettings: "'FILL' 0" }}>notifications</span>
 
           {unreadCount > 0 && (
-            <span className="absolute -top-1 -right-1 bg-red-500 text-white text-[10px] font-bold w-5 h-5 rounded-full flex items-center justify-center border-2 border-white">
-              {unreadCount}
+            <span className="absolute -top-2 -right-2 bg-red-500 text-white text-[10px] font-black w-6 h-6 rounded-full flex items-center justify-center border-2 border-white shadow-md animate-pulse">
+              {unreadCount > 99 ? '99+' : unreadCount}
             </span>
           )}
         </Link>

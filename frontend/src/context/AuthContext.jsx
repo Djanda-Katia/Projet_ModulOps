@@ -6,12 +6,12 @@ const API_BASE = import.meta.env.VITE_API_URL ?? "http://127.0.0.1:8000/api";
 
 export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(() => {
-    const savedUser = localStorage.getItem("user");
+    const savedUser = localStorage.getItem("user") || sessionStorage.getItem("user");
     return savedUser ? JSON.parse(savedUser) : null;
   });
 
   const [token, setToken] = useState(() => {
-    return localStorage.getItem("token") || null;
+    return localStorage.getItem("token") || sessionStorage.getItem("token") || null;
   });
 
   const [loading, setLoading] = useState(false);
@@ -25,19 +25,18 @@ export const AuthProvider = ({ children }) => {
   const fetchUnreadCount = useCallback(async (currentToken) => {
     if (!currentToken) return;
     try {
-      const res = await fetch(`${API_BASE}/notifications`, {
+      const res = await fetch(`${API_BASE}/notifications/unread-count`, {
         headers: { Authorization: `Bearer ${currentToken}` },
       });
       if (!res.ok) return;
       const data = await res.json();
-      const count = data.filter((n) => !n.lu).length;
-      setUnreadCount(count);
+      setUnreadCount(data.count || 0);
     } catch (_) {
       // silencieux
     }
   }, []);
 
-  // Charge au montage et toutes les 60 secondes
+  // Charge au montage et toutes les 10 secondes
   useEffect(() => {
     fetchUnreadCount(token);
     if (!token) return;
@@ -45,11 +44,16 @@ export const AuthProvider = ({ children }) => {
     return () => clearInterval(interval);
   }, [token, fetchUnreadCount]);
 
-  const login = (userData, tokenData) => {
+  const login = (userData, tokenData, rememberMe = false) => {
     setUser(userData);
     setToken(tokenData);
-    localStorage.setItem("token", tokenData);
-    localStorage.setItem("user", JSON.stringify(userData));
+    if (rememberMe) {
+      localStorage.setItem("token", tokenData);
+      localStorage.setItem("user", JSON.stringify(userData));
+    } else {
+      sessionStorage.setItem("token", tokenData);
+      sessionStorage.setItem("user", JSON.stringify(userData));
+    }
     // Charge immédiatement après login
     fetchUnreadCount(tokenData);
   };
@@ -60,6 +64,8 @@ export const AuthProvider = ({ children }) => {
     setUnreadCount(0);
     localStorage.removeItem("token");
     localStorage.removeItem("user");
+    sessionStorage.removeItem("token");
+    sessionStorage.removeItem("user");
   };
 
   return (

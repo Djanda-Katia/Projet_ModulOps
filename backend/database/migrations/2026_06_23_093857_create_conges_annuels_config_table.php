@@ -11,10 +11,7 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::table('users', function (Blueprint $table) {
-            // On convertit la colonne en JSON pour stocker les périodes correctement
-            $table->json('periode_conges_annuels')->nullable()->change();
-        });
+        \Illuminate\Support\Facades\DB::statement('ALTER TABLE users ALTER COLUMN periode_conges_annuels TYPE json USING periode_conges_annuels::json');
     }
 
     /**

@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, lazy, Suspense } from "react";
 import {
   BrowserRouter as Router,
   Routes,
@@ -7,37 +7,44 @@ import {
 } from "react-router-dom";
 import { useAuth } from "./context/AuthContext";
 import Layout from "./components/Layout";
-import { Toaster, toast } from 'react-hot-toast'; // Import du système de toasts
+import { Toaster, toast } from 'react-hot-toast';
 
-// Import de toutes les pages
+// ─── Pages publiques (chargées immédiatement, légères) ───────────────────────
 import Login from "./pages/Login";
 import ForgotPassword from "./pages/ForgotPassword";
 import ResetPassword from "./pages/ResetPassword";
 
-// Employé
-import EmployeeDashboard from "./pages/EmployeeDashboard";
-import EmployeeLeave from "./pages/EmployeeLeave";
-import EmployeeTickets from "./pages/EmployeeTickets";
-import EmployeeTasks from "./pages/EmployeeTasks";
-import EmployeeNotifications from "./pages/EmployeeNotifications";
+// ─── Pages privées (lazy-loaded : ne chargent que quand on navigue vers elles)
+const EmployeeDashboard      = lazy(() => import("./pages/EmployeeDashboard"));
+const EmployeeLeave          = lazy(() => import("./pages/EmployeeLeave"));
+const EmployeeTickets        = lazy(() => import("./pages/EmployeeTickets"));
+const EmployeeTasks          = lazy(() => import("./pages/EmployeeTasks"));
+const EmployeeNotifications  = lazy(() => import("./pages/EmployeeNotifications"));
 
-// Technicien
-import TechnicianDashboard from "./pages/TechnicianDashboard";
-import TechnicianTickets from "./pages/TechnicianTickets";
-import TechnicianNotifications from "./pages/TechnicianNotifications";
+const TechnicianDashboard    = lazy(() => import("./pages/TechnicianDashboard"));
+const TechnicianTickets      = lazy(() => import("./pages/TechnicianTickets"));
+const TechnicianNotifications= lazy(() => import("./pages/TechnicianNotifications"));
 
-// Responsable
-import ManagerDashboard from "./pages/ManagerDashboard";
-import ManagerLeave from "./pages/ManagerLeave";
-import ManagerLeaveConfig from "./pages/ManagerLeaveConfig";
-import ManagerTickets from "./pages/ManagerTickets";
-import ManagerTasks from "./pages/ManagerTasks";
-import ManagerNotifications from "./pages/ManagerNotifications.jsx";
+const ManagerDashboard       = lazy(() => import("./pages/ManagerDashboard"));
+const ManagerLeave           = lazy(() => import("./pages/ManagerLeave"));
+const ManagerLeaveConfig     = lazy(() => import("./pages/ManagerLeaveConfig"));
+const ManagerTickets         = lazy(() => import("./pages/ManagerTickets"));
+const ManagerTasks           = lazy(() => import("./pages/ManagerTasks"));
+const ManagerNotifications   = lazy(() => import("./pages/ManagerNotifications"));
 
-// Administrateur
-import AdminUsers from "./pages/AdminUsers";
-import AdminAudit from "./pages/AdminAudit";
-import AdminNotifications from "./pages/AdminNotifications";
+const AdminUsers             = lazy(() => import("./pages/AdminUsers"));
+const AdminAudit             = lazy(() => import("./pages/AdminAudit"));
+const AdminNotifications     = lazy(() => import("./pages/AdminNotifications"));
+
+// ─── Fallback de chargement (affiché pendant le chargement d'une page) ───────
+const PageLoader = () => (
+  <div className="min-h-screen flex items-center justify-center bg-gray-50">
+    <div className="flex flex-col items-center gap-4 text-gray-400">
+      <span className="material-symbols-outlined animate-spin text-5xl text-blue-500">autorenew</span>
+      <p className="text-sm font-semibold tracking-wide uppercase">Chargement...</p>
+    </div>
+  </div>
+);
 
 const CheckAuth = ({ children }) => {
   const { token } = useAuth();
@@ -116,6 +123,7 @@ function App() {
         }}
       />
 
+      <Suspense fallback={<PageLoader />}>
       <Routes>
         {/* Pages publiques */}
         <Route path="/login" element={<Login />} />
@@ -297,6 +305,7 @@ function App() {
 
         <Route path="*" element={<Navigate to="/login" replace />} />
       </Routes>
+      </Suspense>
     </Router>
   );
 }

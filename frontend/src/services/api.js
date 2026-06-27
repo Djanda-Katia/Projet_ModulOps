@@ -61,8 +61,8 @@ export const login = async (email, password) => {
 };
 
 // Fonction pour récupérer le dashboard (protégée)
-export const getDashboard = async (token) => {
-  const response = await fetch(`${API_BASE}/dashboard`, {
+export const getDashboard = async (token, params = {}) => {
+  const response = await fetch(`${API_BASE}/dashboard${buildQuery(params)}`, {
     method: "GET",
     headers: {
       "Content-Type": "application/json",
@@ -310,8 +310,8 @@ export const updateTaskStatus = async (token, id, statut) => {
 };
 
 // --- MANAGER DASHBOARD ---
-export const getManagerDashboard = async (token) => {
-  const response = await fetch(`${API_BASE}/dashboard`, {
+export const getManagerDashboard = async (token, params = {}) => {
+  const response = await fetch(`${API_BASE}/dashboard${buildQuery(params)}`, {
     method: "GET",
     headers: {
       "Content-Type": "application/json",

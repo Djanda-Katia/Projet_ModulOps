@@ -32,7 +32,11 @@ class AdminController extends Controller
 
         if ($request->has('dates') && $request->dates) {
             $datesArray = explode(',', $request->dates);
-            $query->whereIn(\Illuminate\Support\Facades\DB::raw('DATE(created_at)'), $datesArray);
+            if (count($datesArray) === 2) {
+                $query->whereBetween('created_at', [$datesArray[0].' 00:00:00', $datesArray[1].' 23:59:59']);
+            } else {
+                $query->whereIn(\Illuminate\Support\Facades\DB::raw('DATE(created_at)'), $datesArray);
+            }
         }
 
         if ($request->has('periode') && $request->periode) {
@@ -131,6 +135,30 @@ class AdminController extends Controller
             return response()->json(['message' => 'Utilisateur supprimé avec succès.']);
         } catch (\Exception $e) {
             return response()->json(['message' => 'Impossible de supprimer l\'utilisateur.'], 500);
+        }
+    }
+
+    public function getAudits(Request $request)
+    {
+        try {
+            $query = \App\Models\Audit::query();
+            
+            if ($request->has('dates') && $request->dates) {
+                $datesArray = explode(',', $request->dates);
+                if (count($datesArray) === 2) {
+                    $query->whereBetween('created_at', [$datesArray[0].' 00:00:00', $datesArray[1].' 23:59:59']);
+                }
+            }
+            
+            if ($request->has('export') && $request->export == 'true') {
+                return response()->json([
+                    'data' => $query->orderBy('created_at', 'desc')->get()
+                ]);
+            }
+            
+            return $query->orderBy('created_at', 'desc')->paginate(20);
+        } catch (\Exception $e) {
+            return response()->json(['message' => 'Impossible de récupérer l\'audit.'], 500);
         }
     }
 

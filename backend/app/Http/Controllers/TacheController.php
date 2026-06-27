@@ -216,7 +216,7 @@ class TacheController extends Controller
         $tachesIds = AffectationTache::where('utilisateur_id', Auth::id())
             ->pluck('tache_id');
 
-        $query = Tache::whereIn('id', $tachesIds);
+        $query = Tache::whereIn('id', $tachesIds)->with(['employes', 'responsable']);
 
         if ($request->has('statut') && $request->statut) {
             $query->whereIn('statut', explode(',', $request->statut));
@@ -235,7 +235,11 @@ class TacheController extends Controller
 
         if ($request->has('dates') && $request->dates) {
             $datesArray = explode(',', $request->dates);
-            $query->whereIn(\Illuminate\Support\Facades\DB::raw('DATE(created_at)'), $datesArray);
+            if (count($datesArray) === 2) {
+                $query->whereBetween('created_at', [$datesArray[0].' 00:00:00', $datesArray[1].' 23:59:59']);
+            } else {
+                $query->whereIn(\Illuminate\Support\Facades\DB::raw('DATE(created_at)'), $datesArray);
+            }
         }
 
         if ($request->has('search') && $request->search) {
@@ -250,7 +254,7 @@ class TacheController extends Controller
     }
     public function allTasks(Request $request)
     {
-        $query = Tache::with('employes');
+        $query = Tache::with(['employes', 'responsable']);
 
         if ($request->has('personne_id') && $request->personne_id) {
             $personnesIds = explode(',', $request->personne_id);
@@ -276,7 +280,11 @@ class TacheController extends Controller
 
         if ($request->has('dates') && $request->dates) {
             $datesArray = explode(',', $request->dates);
-            $query->whereIn(\Illuminate\Support\Facades\DB::raw('DATE(created_at)'), $datesArray);
+            if (count($datesArray) === 2) {
+                $query->whereBetween('created_at', [$datesArray[0].' 00:00:00', $datesArray[1].' 23:59:59']);
+            } else {
+                $query->whereIn(\Illuminate\Support\Facades\DB::raw('DATE(created_at)'), $datesArray);
+            }
         }
 
         if ($request->has('search') && $request->search) {

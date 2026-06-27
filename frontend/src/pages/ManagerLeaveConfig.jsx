@@ -1,13 +1,16 @@
 import { useState, useEffect } from "react";
 import { useAuth } from "../context/AuthContext";
+import { useNavigate } from "react-router-dom";
 import toast from 'react-hot-toast';
 
 const API_BASE = import.meta.env.VITE_API_URL ?? "http://localhost:8000";
 
 export default function ManagerLeaveConfig() {
   const { token } = useAuth();
+  const navigate = useNavigate();
   const [employees, setEmployees] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
 
   // États pour la modale
   const [showConfigModal, setShowConfigModal] = useState(false);
@@ -146,7 +149,9 @@ export default function ManagerLeaveConfig() {
 
   // 4. Enregistrer la configuration
   const handleSaveConfig = async () => {
-    if (!token || !selectedEmployee) return;
+    if (saving) return;
+    setSaving(true);
+    if (!token || !selectedEmployee) { setSaving(false); return; }
 
     // On bloque l'enregistrement si aucune période n'est présente, que ce soit un nouvel
     // employé ou un employé dont on vient de retirer toutes les périodes : il doit en rester au moins une.
@@ -197,6 +202,8 @@ export default function ManagerLeaveConfig() {
       setEndDateInput("");
     } catch (error) {
       toast.error(error.message);
+    } finally {
+      setSaving(false);
     }
   };
 
@@ -217,6 +224,13 @@ export default function ManagerLeaveConfig() {
 
       <div className="flex justify-between items-end">
         <div>
+          <button
+            onClick={() => navigate('/manager-leave')}
+            className="flex items-center gap-2 text-sm font-bold text-gray-500 hover:text-blue-600 mb-3 transition-colors group"
+          >
+            <span className="material-symbols-outlined text-[20px] group-hover:-translate-x-1 transition-transform">arrow_back</span>
+            Retour aux congés
+          </button>
           <h1 className="text-2xl font-bold text-gray-900">Gestion des congés annuels</h1>
           <p className="text-gray-500 text-sm">Configurez les droits aux congés annuels de vos employés.</p>
         </div>
@@ -402,9 +416,12 @@ export default function ManagerLeaveConfig() {
                 </button>
                 <button
                   onClick={handleSaveConfig}
-                  className="flex-1 bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 rounded-lg transition-colors uppercase"
+                  disabled={saving}
+                  className="flex-1 bg-blue-600 hover:bg-blue-700 disabled:opacity-60 disabled:cursor-not-allowed text-white font-bold py-3 rounded-lg transition-colors uppercase flex items-center justify-center gap-2"
                 >
-                  Enregistrer
+                  {saving ? (
+                    <><span className="material-symbols-outlined animate-spin text-[18px]">autorenew</span> Enregistrement...</>
+                  ) : 'Enregistrer'}
                 </button>
               </div>
             </div>

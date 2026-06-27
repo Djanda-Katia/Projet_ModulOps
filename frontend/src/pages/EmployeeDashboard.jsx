@@ -1,284 +1,307 @@
 import { useAuth } from "../context/AuthContext";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { getDashboard } from "../services/api";
+import PeriodSelector, { getPeriodApiParam } from "../components/PeriodSelector";
 
-const PERIODS = [
-  { value: '7j', label: '7 jours' },
-  { value: '30j', label: '30 jours' },
-  { value: '90j', label: '3 mois' },
-  { value: 'tout', label: 'Tout' },
-];
-
-const API_BASE = import.meta.env.VITE_API_URL ?? "http://127.0.0.1:8000";
+const PERIOD_LABELS = {
+  today: "Aujourd'hui", week: 'Cette semaine', '7j': '7 derniers jours',
+  '30j': '30 derniers jours', '6m': '6 derniers mois', year: 'Cette année',
+  last_year: 'Année précédente'
+};
 
 export default function EmployeeDashboard() {
   const { user, token } = useAuth();
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [period, setPeriod] = useState('tout');
+  const [period, setPeriod] = useState('30j');
 
-  useEffect(() => {
-    const fetchDashboard = async () => {
-      try {
-        const result = await getDashboard(token);
-        setData(result);
-      } catch (error) {
-        console.error("Erreur dashboard:", error);
-      } finally {
-        setLoading(false);
-      }
-    };
-    if (token) fetchDashboard();
+  const fetchDashboard = useCallback(async (currentPeriod) => {
+    try {
+      setLoading(true);
+      const apiParams = getPeriodApiParam(currentPeriod);
+      const result = await getDashboard(token, apiParams);
+      setData(result);
+    } catch (error) {
+      console.error("Erreur dashboard:", error);
+    } finally {
+      setLoading(false);
+    }
   }, [token]);
 
-  if (loading) return <div className="text-center py-10 text-gray-400 animate-pulse">Chargement...</div>;
-  if (!data) return <div>Erreur de chargement</div>;
+  useEffect(() => {
+    if (token) fetchDashboard(period);
+  }, [token, period, fetchDashboard]);
 
-  // Filtrer les tickets et congés selon la période
-  const filterByPeriod = (items, dateField = 'created_at') => {
-    if (!items || period === 'tout') return items || [];
-    const days = period === '7j' ? 7 : period === '30j' ? 30 : 90;
-    const cutoff = new Date();
-    cutoff.setDate(cutoff.getDate() - days);
-    return items.filter(item => new Date(item[dateField]) >= cutoff);
+  if (loading) return <div className="text-center py-10 text-gray-400 animate-pulse font-medium">Chargement des statistiques...</div>;
+  if (!data) return <div className="text-center py-10 text-red-500 font-medium">Erreur de chargement du tableau de bord</div>;
+
+  // Données déjà filtrées par le backend
+  const filteredConges = data.conges ?? [];
+  const filteredTickets = data.tickets ?? [];
+  const filteredTaches = data.taches ?? [];
+
+  const statsTickets = {
+    total: filteredTickets.length,
+    ouverts: filteredTickets.filter(t => t.statut === 'Ouvert').length,
+    enCours: filteredTickets.filter(t => t.statut === 'En cours').length,
+    resolus: filteredTickets.filter(t => t.statut === 'Résolu').length,
+    fermes: filteredTickets.filter(t => t.statut === 'Fermé').length,
   };
 
-  const filteredConges = filterByPeriod(data.conges, 'date_debut');
-  const filteredTickets = filterByPeriod(data.tickets);
-  const filteredTaches = filterByPeriod(data.taches);
+  const statsTaches = {
+    total: filteredTaches.length,
+    aFaire: filteredTaches.filter(t => t.statut === 'À faire').length,
+    enCours: filteredTaches.filter(t => t.statut === 'En cours').length,
+    terminees: filteredTaches.filter(t => ['Terminée', 'Fermée'].includes(t.statut)).length,
+  };
 
+  const statusBadge = (s) => ({
+    'Ouvert': 'bg-indigo-100 text-indigo-700',
+    'En cours': 'bg-amber-100 text-amber-700',
+    'Résolu': 'bg-green-100 text-green-700',
+    'Fermé': 'bg-gray-100 text-gray-600',
+    'À faire': 'bg-gray-100 text-gray-600',
+    'Terminée': 'bg-green-100 text-green-700',
+  }[s] ?? 'bg-gray-100 text-gray-600');
+
+  const prioriteBadge = (p) => ({
+    'Haute': 'bg-red-100 text-red-700',
+    'Moyenne': 'bg-blue-100 text-blue-700',
+    'Basse': 'bg-gray-100 text-gray-500',
+  }[p] ?? 'bg-gray-100 text-gray-500');
+
+  const congeStatutBadge = (s) => ({
+    'En attente': 'bg-amber-100 text-amber-800',
+    'Approuvée':  'bg-green-100 text-green-800',
+    'Rejetée':   'bg-red-100 text-red-800',
+    'Annulée':   'bg-gray-100 text-gray-500 line-through',
+  }[s] ?? 'bg-gray-100 text-gray-600');
 
   return (
     <div className="space-y-6">
-      {/* ── En-tête avec sélecteur de période ── */}
+      {/* ── En-tête ── */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Tableau de bord</h1>
-          <p className="text-gray-500 text-sm">Vue d'ensemble de votre activité</p>
+          <h1 className="text-2xl font-bold text-gray-900">Mon Tableau de Bord</h1>
+          <p className="text-gray-500 text-sm mt-0.5">Vue d'ensemble de votre activité et de vos requêtes</p>
         </div>
-        <div className="flex items-center gap-1 bg-white border border-gray-200 rounded-xl p-1 shadow-sm">
-          {PERIODS.map(p => (
-            <button key={p.value} onClick={() => setPeriod(p.value)}
-              className={`px-4 py-2 rounded-lg text-xs font-bold transition-all ${
-                period === p.value ? 'bg-blue-600 text-white shadow-sm' : 'text-gray-500 hover:text-gray-700 hover:bg-gray-50'
-              }`}
-            >{p.label}</button>
-          ))}
-        </div>
+        <PeriodSelector value={period} onChange={setPeriod} compact />
       </div>
 
       {/* --- STAT CARDS --- */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         {/* Solde annuel */}
-        <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200 flex items-start justify-between">
-          <div>
-            <p className="text-sm text-gray-500 mb-1">Solde annuel restant</p>
-            {data.stats.solde_annuel_total > 0 ? (
-              <h3 className="text-3xl font-bold text-gray-900">
-                {data.stats.solde_annuel_restant}
-                <span className="text-lg font-medium text-gray-400"> / {data.stats.solde_annuel_total} j</span>
-              </h3>
-            ) : (
-              <h3 className="text-base font-semibold text-gray-400 mt-1">Non configuré</h3>
-            )}
+        <div className="bg-blue-50 rounded-2xl p-5 flex flex-col gap-3 border border-white">
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-bold text-gray-500 uppercase tracking-wider">Solde Annuel</span>
+            <div className="w-9 h-9 rounded-xl bg-blue-100 text-blue-600 flex items-center justify-center">
+              <span className="material-symbols-outlined text-[20px]" style={{ fontVariationSettings: "'FILL' 1" }}>calendar_month</span>
+            </div>
           </div>
-          <div className="p-3 bg-blue-100 rounded-lg text-blue-600">
-            <span className="material-symbols-outlined" style={{ fontVariationSettings: "'FILL' 1" }}>calendar_month</span>
-          </div>
+          {data.stats.solde_annuel_total > 0 ? (
+            <p className="text-4xl font-black text-blue-700 flex items-baseline gap-1">
+              {data.stats.solde_annuel_restant}
+              <span className="text-lg font-medium text-blue-400">/ {data.stats.solde_annuel_total}</span>
+            </p>
+          ) : (
+             <p className="text-lg font-bold text-gray-400 mt-2">Non configuré</p>
+          )}
+          <p className="text-xs text-gray-400">Jours de congés restants</p>
         </div>
 
         {/* Congés pris */}
-        <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200 flex items-start justify-between">
-          <div>
-            <p className="text-sm text-gray-500 mb-1">Congés annuels pris</p>
-            <h3 className="text-3xl font-bold text-gray-900">{data.stats.jours_annuels_pris} <span className="text-lg font-medium text-gray-400">jours</span></h3>
+        <div className="bg-orange-50 rounded-2xl p-5 flex flex-col gap-3 border border-white">
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-bold text-gray-500 uppercase tracking-wider">Congés Annuels Pris</span>
+            <div className="w-9 h-9 rounded-xl bg-orange-100 text-orange-600 flex items-center justify-center">
+              <span className="material-symbols-outlined text-[20px]" style={{ fontVariationSettings: "'FILL' 1" }}>event_busy</span>
+            </div>
           </div>
-          <div className="p-3 bg-orange-100 rounded-lg text-orange-600">
-            <span className="material-symbols-outlined" style={{ fontVariationSettings: "'FILL' 1" }}>event_busy</span>
-          </div>
+          <p className="text-4xl font-black text-orange-700">{data.stats.jours_annuels_pris}</p>
+          <p className="text-xs text-gray-400">Jours annuels consommés</p>
         </div>
 
-        {/* Congé maladie actif */}
-        {(() => {
-          const maladie = data.conges_actifs?.Maladie;
-          return (
-            <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200 flex items-start justify-between">
-              <div>
-                <p className="text-sm text-gray-500 mb-1">Congé maladie</p>
-                {maladie?.actif ? (
-                  maladie.jours_restants === 0 ? (
-                    <h3 className="text-xl font-bold text-amber-600">Dernier jour</h3>
-                  ) : (
-                    <h3 className="text-3xl font-bold text-gray-900">
-                      {maladie.jours_restants}
-                      <span className="text-lg font-medium text-gray-400"> j restants</span>
-                    </h3>
-                  )
-                ) : (
-                  <h3 className="text-sm font-semibold text-gray-400 mt-1">Aucun congé maladie</h3>
-                )}
-              </div>
-              <div className={`p-3 rounded-lg ${maladie?.actif ? 'bg-red-100 text-red-600' : 'bg-gray-100 text-gray-400'}`}>
-                <span className="material-symbols-outlined" style={{ fontVariationSettings: "'FILL' 1" }}>health_and_safety</span>
-              </div>
+        {/* Tâches actives */}
+        <div className="bg-indigo-50 rounded-2xl p-5 flex flex-col gap-3 border border-white">
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-bold text-gray-500 uppercase tracking-wider">Tâches actives</span>
+            <div className="w-9 h-9 rounded-xl bg-indigo-100 text-indigo-600 flex items-center justify-center">
+              <span className="material-symbols-outlined text-[20px]" style={{ fontVariationSettings: "'FILL' 1" }}>assignment</span>
             </div>
-          );
-        })()}
-
-        {/* Congé exceptionnel actif */}
-        {(() => {
-          const excep = data.conges_actifs?.Exceptionnel;
-          return (
-            <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200 flex items-start justify-between">
-              <div>
-                <p className="text-sm text-gray-500 mb-1">Congé exceptionnel</p>
-                {excep?.actif ? (
-                  excep.jours_restants === 0 ? (
-                    <h3 className="text-xl font-bold text-amber-600">Dernier jour</h3>
-                  ) : (
-                    <h3 className="text-3xl font-bold text-gray-900">
-                      {excep.jours_restants}
-                      <span className="text-lg font-medium text-gray-400"> j restants</span>
-                    </h3>
-                  )
-                ) : (
-                  <h3 className="text-sm font-semibold text-gray-400 mt-1">Aucun congé exceptionnel</h3>
-                )}
-              </div>
-              <div className={`p-3 rounded-lg ${excep?.actif ? 'bg-purple-100 text-purple-600' : 'bg-gray-100 text-gray-400'}`}>
-                <span className="material-symbols-outlined" style={{ fontVariationSettings: "'FILL' 1" }}>star</span>
-              </div>
-            </div>
-          );
-        })()}
-
+          </div>
+          <p className="text-4xl font-black text-indigo-700">{statsTaches.enCours + statsTaches.aFaire}</p>
+          <p className="text-xs text-gray-400">{typeof period === 'object' ? 'Période personnalisée' : PERIOD_LABELS[period]}</p>
+        </div>
       </div>
 
-      {/* --- MAIN GRID (Tableaux dynamiques) --- */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        
+      {/* --- PROGRESS BARS --- */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        {statsTickets.total > 0 && (
+          <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
+            <div className="flex items-center justify-between mb-3">
+              <span className="text-sm font-bold text-gray-700">Répartition de vos tickets</span>
+              <span className="text-xs text-gray-400 bg-gray-50 border border-gray-200 px-2 py-1 rounded-full">{typeof period === 'object' ? 'Période personnalisée' : PERIOD_LABELS[period]}</span>
+            </div>
+            <div className="flex h-3 rounded-full overflow-hidden gap-0.5">
+              {statsTickets.ouverts > 0 && <div className="bg-indigo-400 transition-all" style={{ width: `${(statsTickets.ouverts / statsTickets.total) * 100}%` }} />}
+              {statsTickets.enCours > 0 && <div className="bg-amber-400 transition-all" style={{ width: `${(statsTickets.enCours / statsTickets.total) * 100}%` }} />}
+              {statsTickets.resolus > 0 && <div className="bg-green-400 transition-all" style={{ width: `${(statsTickets.resolus / statsTickets.total) * 100}%` }} />}
+              {statsTickets.fermes > 0 && <div className="bg-gray-300 transition-all" style={{ width: `${(statsTickets.fermes / statsTickets.total) * 100}%` }} />}
+            </div>
+            <div className="flex items-center gap-4 mt-2 flex-wrap">
+              {[
+                { label: 'Ouvert', color: 'bg-indigo-400', val: statsTickets.ouverts },
+                { label: 'En cours', color: 'bg-amber-400', val: statsTickets.enCours },
+                { label: 'Résolu', color: 'bg-green-400', val: statsTickets.resolus },
+                { label: 'Fermé', color: 'bg-gray-300', val: statsTickets.fermes },
+              ].map(item => (
+                <span key={item.label} className="flex items-center gap-1.5 text-xs text-gray-500">
+                  <span className={`w-2.5 h-2.5 rounded-full ${item.color}`} />
+                  {item.label} ({item.val})
+                </span>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {statsTaches.total > 0 && (
+          <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
+            <div className="flex items-center justify-between mb-3">
+              <span className="text-sm font-bold text-gray-700">Progression de vos tâches</span>
+              <span className="text-xs text-gray-400 bg-gray-50 border border-gray-200 px-2 py-1 rounded-full">{typeof period === 'object' ? 'Période personnalisée' : PERIOD_LABELS[period]}</span>
+            </div>
+            <div className="flex h-3 rounded-full overflow-hidden gap-0.5">
+              {statsTaches.aFaire > 0 && <div className="bg-gray-300 transition-all" style={{ width: `${(statsTaches.aFaire / statsTaches.total) * 100}%` }} />}
+              {statsTaches.enCours > 0 && <div className="bg-blue-400 transition-all" style={{ width: `${(statsTaches.enCours / statsTaches.total) * 100}%` }} />}
+              {statsTaches.terminees > 0 && <div className="bg-green-400 transition-all" style={{ width: `${(statsTaches.terminees / statsTaches.total) * 100}%` }} />}
+            </div>
+            <div className="flex items-center gap-4 mt-2 flex-wrap">
+              {[
+                { label: 'À faire', color: 'bg-gray-300', val: statsTaches.aFaire },
+                { label: 'En cours', color: 'bg-blue-400', val: statsTaches.enCours },
+                { label: 'Terminées', color: 'bg-green-400', val: statsTaches.terminees },
+              ].map(item => (
+                <span key={item.label} className="flex items-center gap-1.5 text-xs text-gray-500">
+                  <span className={`w-2.5 h-2.5 rounded-full ${item.color}`} />
+                  {item.label} ({item.val})
+                </span>
+              ))}
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* --- MAIN GRID --- */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Congés */}
-        <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
-          <div className="p-4 border-b border-gray-100 flex justify-between items-center">
-            <h3 className="text-sm font-bold text-gray-900">Mes dernières demandes de congé</h3>
-          </div>
-          <div className="overflow-x-auto">
-            <table className="w-full text-left">
-              <thead className="bg-gray-50 text-gray-500 text-xs uppercase tracking-wider">
-                <tr>
-                  <th className="px-4 py-2">Type</th>
-                  <th className="px-4 py-2">Dates</th>
-                  <th className="px-4 py-2">Statut</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-100 text-sm">
-                {filteredConges.length > 0 ? (
-                  filteredConges.map((conge) => (
-                    <tr key={conge.id}>
-                      <td className="px-4 py-3">{conge.type_conge}</td>
-                      <td className="px-4 py-3 text-gray-500">
-                        {new Date(conge.date_debut).toLocaleDateString()} - {new Date(conge.date_fin).toLocaleDateString()}
-                      </td>
-                      <td className="px-4 py-3">
-                        <span className={`px-2 py-1 rounded-full text-xs font-semibold ${
-                          conge.statut === "En attente" ? "bg-amber-100 text-amber-800" :
-                          conge.statut === "Approuvée" ? "bg-green-100 text-green-800" :
-                          "bg-red-100 text-red-800"
-                        }`}>
-                          {conge.statut}
-                        </span>
-                      </td>
+        {(() => {
+          const today = new Date(); today.setHours(0,0,0,0);
+          // Actifs = en attente ou approuvés dont la date de fin >= aujourd'hui
+          const congesActifsListe = data.conges.filter(c =>
+            c.statut === 'En attente' ||
+            (c.statut === 'Approuvée' && new Date(c.date_fin) >= today)
+          );
+          // Historique = tout le reste (passés, rejetés, annulés)
+          const congesHistorique = data.conges.filter(c =>
+            c.statut === 'Rejetée' ||
+            c.statut === 'Annulée' ||
+            (c.statut === 'Approuvée' && new Date(c.date_fin) < today)
+          );
+
+          const renderRow = (conge) => (
+            <tr key={conge.id} className="hover:bg-gray-50 transition-colors">
+              <td className="px-5 py-3 font-semibold text-gray-800 text-sm">{conge.type_conge}</td>
+              <td className="px-5 py-3 text-gray-500 text-xs">
+                {new Date(conge.date_debut).toLocaleDateString('fr-FR')} → {new Date(conge.date_fin).toLocaleDateString('fr-FR')}
+              </td>
+              <td className="px-5 py-3">
+                <span className={`px-2.5 py-1 rounded-full text-xs font-bold ${congeStatutBadge(conge.statut)}`}>
+                  {conge.statut}
+                </span>
+              </td>
+            </tr>
+          );
+
+          return (
+            <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+              {/* Actifs / À venir */}
+              <div className="px-6 py-3 border-b border-gray-100 flex justify-between items-center bg-gray-50/50">
+                <h3 className="text-sm font-bold text-gray-900">Congés actifs / à venir</h3>
+                <span className="text-xs font-medium text-green-600 bg-green-50 px-2 py-0.5 rounded-full">{congesActifsListe.length}</span>
+              </div>
+              <div className="overflow-x-auto">
+                <table className="w-full text-left">
+                  <thead className="bg-gray-50 text-gray-500 text-xs uppercase tracking-wider">
+                    <tr>
+                      <th className="px-5 py-2.5">Type</th>
+                      <th className="px-5 py-2.5">Période</th>
+                      <th className="px-5 py-2.5">Statut</th>
                     </tr>
-                  ))
-                ) : (
-                  <tr><td colSpan="3" className="px-4 py-3 text-center text-gray-500">Aucune demande sur cette période</td></tr>
-                )}
-              </tbody>
-            </table>
-          </div>
-        </div>
+                  </thead>
+                  <tbody className="divide-y divide-gray-100">
+                    {congesActifsListe.length > 0
+                      ? congesActifsListe.map(renderRow)
+                      : <tr><td colSpan="3" className="px-6 py-6 text-center text-gray-400 text-sm">Aucun congé actif ou à venir</td></tr>
+                    }
+                  </tbody>
+                </table>
+              </div>
+
+              {/* Historique */}
+              {congesHistorique.length > 0 && (
+                <>
+                  <div className="px-6 py-3 border-t border-b border-gray-100 flex justify-between items-center bg-gray-50/80">
+                    <h3 className="text-xs font-bold text-gray-500 uppercase tracking-wide">Historique</h3>
+                    <span className="text-xs text-gray-400">{congesHistorique.length} entrée{congesHistorique.length > 1 ? 's' : ''}</span>
+                  </div>
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-left">
+                      <tbody className="divide-y divide-gray-100">
+                        {congesHistorique.slice(0, 5).map(renderRow)}
+                      </tbody>
+                    </table>
+                  </div>
+                </>
+              )}
+            </div>
+          );
+        })()}
+
 
         {/* Tickets */}
-        <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
-          <div className="p-4 border-b border-gray-100 flex justify-between items-center">
-            <h3 className="text-sm font-bold text-gray-900">Mes tickets récents</h3>
+        <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+          <div className="px-6 py-4 border-b border-gray-100 flex justify-between items-center bg-gray-50/50">
+            <h3 className="text-sm font-bold text-gray-900">Tickets récents</h3>
+            <span className="text-xs text-gray-400 bg-gray-100 px-2 py-1 rounded-full">{PERIOD_LABELS[period]}</span>
           </div>
           <div className="overflow-x-auto">
             <table className="w-full text-left">
               <thead className="bg-gray-50 text-gray-500 text-xs uppercase tracking-wider">
                 <tr>
-                  <th className="px-4 py-2">Titre</th>
-                  <th className="px-4 py-2">Priorité</th>
-                  <th className="px-4 py-2">Statut</th>
+                  <th className="px-6 py-3">Titre</th>
+                  <th className="px-6 py-3">Priorité</th>
+                  <th className="px-6 py-3">Statut</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100 text-sm">
                 {filteredTickets.length > 0 ? (
-                  filteredTickets.map((ticket) => (
-                    <tr key={ticket.id}>
-                      <td className="px-4 py-3 font-semibold">{ticket.titre}</td>
-                      <td className="px-4 py-3">
-                        <span className={`px-2 py-1 rounded-full text-xs font-bold ${
-                          ticket.priorite === "Haute" ? "bg-red-100 text-red-700" :
-                          ticket.priorite === "Moyenne" ? "bg-blue-100 text-blue-700" :
-                          "bg-gray-100 text-gray-600"
-                        }`}>
+                  filteredTickets.slice(0, 5).map((ticket) => (
+                    <tr key={ticket.id} className="hover:bg-gray-50 transition-colors">
+                      <td className="px-6 py-3 font-semibold text-gray-800 truncate max-w-[150px]">{ticket.titre}</td>
+                      <td className="px-6 py-3">
+                        <span className={`px-2 py-1 rounded-full text-xs font-bold ${prioriteBadge(ticket.priorite)}`}>
                           {ticket.priorite}
                         </span>
                       </td>
-                      <td className="px-4 py-3">
-                        <span className={`px-2 py-1 rounded-full text-xs font-semibold ${
-                          ticket.statut === "Ouvert" ? "bg-blue-100 text-blue-700" :
-                          ticket.statut === "En cours" ? "bg-amber-100 text-amber-700" :
-                          ticket.statut === "Résolu" ? "bg-purple-100 text-purple-700" :
-                          "bg-gray-100 text-gray-600"
-                        }`}>
+                      <td className="px-6 py-3">
+                        <span className={`px-2.5 py-1 rounded-full text-xs font-bold ${statusBadge(ticket.statut)}`}>
                           {ticket.statut}
                         </span>
                       </td>
                     </tr>
                   ))
                 ) : (
-                  <tr><td colSpan="3" className="px-4 py-3 text-center text-gray-500">Aucun ticket sur cette période</td></tr>
-                )}
-              </tbody>
-            </table>
-          </div>
-        </div>
-
-        {/* Tâches */}
-        <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
-          <div className="p-4 border-b border-gray-100 flex justify-between items-center">
-            <h3 className="text-sm font-bold text-gray-900">Mes tâches récentes</h3>
-          </div>
-          <div className="overflow-x-auto">
-            <table className="w-full text-left">
-              <thead className="bg-gray-50 text-gray-500 text-xs uppercase tracking-wider">
-                <tr>
-                  <th className="px-4 py-2">Titre</th>
-                  <th className="px-4 py-2">Statut</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-100 text-sm">
-                {filteredTaches.length > 0 ? (
-                  filteredTaches.map((tache) => (
-                    <tr key={tache.id}>
-                      <td className="px-4 py-3 font-semibold">{tache.titre}</td>
-                      <td className="px-4 py-3">
-                        <span className={`px-2 py-1 rounded-full text-xs font-semibold ${
-                          tache.statut === "À faire" ? "bg-gray-100 text-gray-600" :
-                          tache.statut === "En cours" ? "bg-blue-100 text-blue-700" :
-                          tache.statut === "Terminée" || tache.statut === "Fermée" ? "bg-green-100 text-green-700" :
-                          "bg-gray-100 text-gray-600"
-                        }`}>
-                          {tache.statut}
-                        </span>
-                      </td>
-                    </tr>
-                  ))
-                ) : (
-                  <tr><td colSpan="2" className="px-4 py-3 text-center text-gray-500">Aucune tâche sur cette période</td></tr>
+                  <tr><td colSpan="3" className="px-6 py-8 text-center text-gray-400">Aucun ticket sur cette période</td></tr>
                 )}
               </tbody>
             </table>

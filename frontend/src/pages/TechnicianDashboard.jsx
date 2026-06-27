@@ -1,13 +1,7 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useAuth } from "../context/AuthContext";
 import { getTickets } from "../services/api";
-
-const PERIODS = [
-  { value: '7j', label: '7 derniers jours' },
-  { value: '30j', label: '30 derniers jours' },
-  { value: '90j', label: '3 derniers mois' },
-  { value: 'tout', label: 'Tout' },
-];
+import PeriodSelector, { getPeriodApiParam } from "../components/PeriodSelector";
 
 const API_BASE = import.meta.env.VITE_API_URL ?? "http://127.0.0.1:8000";
 
@@ -18,18 +12,18 @@ export default function TechnicianDashboard() {
   const [recentTickets, setRecentTickets] = useState([]);
   const [loading, setLoading] = useState(true);
 
-  const loadData = async (p) => {
+  const loadData = useCallback(async (p) => {
     if (!token) return;
     try {
       setLoading(true);
-      // Charger tous les tickets (sans pagination pour les stats du dashboard)
-      const params = new URLSearchParams({ per_page: 100 });
-      if (p !== 'tout') params.set('periode', p);
+      const apiParams = getPeriodApiParam(p);
+      const params = new URLSearchParams({ per_page: 200, ...apiParams });
       const res = await fetch(`${API_BASE}/api/tickets?${params}`, {
         headers: { Authorization: `Bearer ${token}` }
       });
       const data = await res.json();
       const tickets = data.data || (Array.isArray(data) ? data : []);
+      // Backend déjà filtré par dates via getPeriodApiParam
 
       setStats({
         total: tickets.length,
@@ -44,9 +38,9 @@ export default function TechnicianDashboard() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [token]);
 
-  useEffect(() => { loadData(period); }, [token, period]);
+  useEffect(() => { loadData(period); }, [token, period, loadData]);
 
   const statCards = [
     { label: "Total assignés", value: stats.total, color: "blue", icon: "assignment" },
@@ -75,6 +69,12 @@ export default function TechnicianDashboard() {
     'Basse': 'bg-gray-100 text-gray-500',
   }[p] ?? 'bg-gray-100 text-gray-500');
 
+  const PERIOD_LABELS = {
+    today: "Aujourd'hui", week: 'Cette semaine', '7j': '7 derniers jours',
+    '30j': '30 derniers jours', '6m': '6 derniers mois', year: 'Cette année',
+    last_year: 'Année précédente'
+  };
+
   return (
     <div className="space-y-6">
       {/* ── En-tête avec sélecteur de période ── */}
@@ -83,23 +83,7 @@ export default function TechnicianDashboard() {
           <h1 className="text-2xl font-bold text-gray-900">Tableau de bord</h1>
           <p className="text-gray-500 text-sm mt-0.5">Vue d'ensemble de vos tickets assignés</p>
         </div>
-
-        {/* Sélecteur de période */}
-        <div className="flex items-center gap-1 bg-white border border-gray-200 rounded-xl p-1 shadow-sm">
-          {PERIODS.map(p => (
-            <button
-              key={p.value}
-              onClick={() => setPeriod(p.value)}
-              className={`px-4 py-2 rounded-lg text-xs font-bold transition-all ${
-                period === p.value
-                  ? 'bg-blue-600 text-white shadow-sm'
-                  : 'text-gray-500 hover:text-gray-700 hover:bg-gray-50'
-              }`}
-            >
-              {p.label}
-            </button>
-          ))}
-        </div>
+        <PeriodSelector value={period} onChange={setPeriod} compact />
       </div>
 
       {/* ── Stat Cards ── */}
@@ -117,7 +101,7 @@ export default function TechnicianDashboard() {
               <p className={`text-4xl font-black ${c.text}`}>
                 {loading ? <span className="animate-pulse text-gray-300">—</span> : card.value}
               </p>
-              <p className="text-xs text-gray-400">{PERIODS.find(p => p.value === period)?.label}</p>
+              <p className="text-xs text-gray-400">{PERIOD_LABELS[period]}</p>
             </div>
           );
         })}
@@ -157,7 +141,7 @@ export default function TechnicianDashboard() {
         <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between">
           <h3 className="text-sm font-bold text-gray-900">Tickets récents</h3>
           <span className="text-xs text-gray-400 bg-gray-50 border border-gray-200 px-2.5 py-1 rounded-full font-medium">
-            {PERIODS.find(p => p.value === period)?.label}
+            {PERIOD_LABELS[period]}
           </span>
         </div>
 
